@@ -342,6 +342,12 @@ button:disabled .send-icon {
   background: var(--settings-panel-bg);
   box-shadow: 0 10px 26px var(--settings-panel-shadow);
   z-index: 4;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.settings-panel[hidden] {
+  display: none;
 }
 
 .settings-option {
@@ -356,6 +362,28 @@ button:disabled .send-icon {
 .settings-option input {
   margin: 0.17rem 0 0;
   accent-color: var(--blue);
+}
+
+.settings-control {
+  display: grid;
+  gap: 0.34rem;
+}
+
+.settings-control select {
+  width: 100%;
+  border: 1px solid var(--textarea-border);
+  border-radius: 8px;
+  padding: 0.32rem 0.5rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--ink);
+  background: var(--textarea-bg);
+}
+
+.settings-control select:focus-visible {
+  outline: 2px solid var(--settings-focus-outline);
+  outline-offset: 1px;
+  border-color: var(--cyan);
 }
 
 @keyframes send-spin {

@@ -25,12 +25,19 @@ const footerYear = document.getElementById("footerYear");
 const settingsToggle = document.getElementById("settingsToggle");
 const settingsPanel = document.getElementById("settingsPanel");
 const toggleRoutingMeta = document.getElementById("toggleRoutingMeta");
+const themeSelect = document.getElementById("themeSelect");
+const rootElement = document.documentElement;
 const pageBody = document.body;
 let statusCycleTimer = null;
 let statusCycleRunId = 0;
 let chatScrollRafId = null;
 const ROUTING_META_HIDDEN_CLASS = "hide-routing-meta";
 const ROUTING_META_STORAGE_KEY = "calquery-routing-meta-visible";
+const THEME_STORAGE_KEY = "calquery-theme";
+const THEME_DEFAULT = "default";
+const THEME_KANAGAWA = "kanagawa";
+const THEME_GRUVBOX_DARK = "gruvbox-dark";
+const SUPPORTED_THEMES = new Set([THEME_DEFAULT, THEME_KANAGAWA, THEME_GRUVBOX_DARK]);
 const STOP_WORDS = new Set([
   "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "in", "into",
   "is", "it", "its", "of", "on", "or", "that", "the", "their", "this", "to",
@@ -404,6 +411,44 @@ function setRoutingMetaVisibility(isVisible) {
   }
 }
 
+function normalizeThemeName(themeName) {
+  if (typeof themeName !== "string") {
+    return THEME_DEFAULT;
+  }
+  const normalized = themeName.trim().toLowerCase();
+  if (SUPPORTED_THEMES.has(normalized)) {
+    return normalized;
+  }
+  return THEME_DEFAULT;
+}
+
+function setTheme(themeName, options = {}) {
+  const selectedTheme = normalizeThemeName(themeName);
+  const shouldPersist = options.persist !== false;
+
+  if (rootElement) {
+    if (selectedTheme === THEME_DEFAULT) {
+      rootElement.removeAttribute("data-theme");
+    } else {
+      rootElement.setAttribute("data-theme", selectedTheme);
+    }
+  }
+
+  if (themeSelect && themeSelect.value !== selectedTheme) {
+    themeSelect.value = selectedTheme;
+  }
+
+  if (shouldPersist) {
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, selectedTheme);
+    } catch (error) {
+      // Ignore storage failures in private mode or restricted environments.
+    }
+  }
+
+  return selectedTheme;
+}
+
 function setSettingsPanelOpen(isOpen) {
   if (!settingsToggle || !settingsPanel) {
     return;
@@ -423,6 +468,17 @@ function loadRoutingMetaPreference() {
   setRoutingMetaVisibility(saved !== "0");
 }
 
+function loadThemePreference() {
+  let saved = null;
+  try {
+    saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+  } catch (error) {
+    saved = null;
+  }
+  setTheme(saved, { persist: false });
+}
+
+loadThemePreference();
 loadRoutingMetaPreference();
 
 if (toggleRoutingMeta) {
@@ -431,6 +487,13 @@ if (toggleRoutingMeta) {
     trackEvent("routing_meta_toggled", {
       visible: event.target.checked ? 1 : 0,
     });
+  });
+}
+
+if (themeSelect) {
+  themeSelect.addEventListener("change", (event) => {
+    const selectedTheme = setTheme(event.target.value);
+    trackEvent("theme_toggled", { theme: selectedTheme });
   });
 }
 

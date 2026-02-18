@@ -1,0 +1,50 @@
+:root[data-theme="kanagawa"] {
+  --base3: #f2ecbc;
+  --base2: #e5ddb0;
+  --base1: #8a8980;
+  --base0: #716e61;
+  --base00: #545464;
+  --base01: #43436c;
+  --yellow: #de9800;
+  --orange: #cc6d00;
+  --red: #c84053;
+  --magenta: #b35b79;
+  --violet: #624c83;
+  --blue: #4d699b;
+  --cyan: #597b75;
+  --green: #6f894e;
+
+  --ink: #545464;
+  --subtle: #716e61;
+  --line: #d5cea3;
+  --bg: #f2ecbc;
+  --panel: #e5ddb0;
+  --teal: #4d699b;
+  --teal-soft: #c7d7e0;
+  --user: #d7e3d8;
+
+  --shell-shadow: rgba(84, 84, 100, 0.16);
+  --header-gradient-start: #f2ecbc;
+  --header-gradient-end: #e7dba0;
+  --header-title-shadow: rgba(242, 236, 188, 0.8);
+  --chat-log-bg: #f2ecbc;
+  --message-bg: #e5ddb0;
+  --message-assistant-bg: #dcd5ac;
+  --message-user-border: #9fb5c9;
+  --message-system-bg: #f9d791;
+  --message-system-border: #de9800;
+  --content-pre-border: #d5cea3;
+  --content-pre-bg: #dcd5ac;
+  --content-code-bg: #d5cea3;
+  --composer-bg: #e5ddb0;
+  --textarea-border: #d5cea3;
+  --textarea-bg: #f2ecbc;
+  --textarea-focus-outline: rgba(77, 105, 155, 0.35);
+  --button-shadow: rgba(77, 105, 155, 0.24);
+  --settings-focus-outline: rgba(77, 105, 155, 0.35);
+  --settings-panel-bg: #dcd5ac;
+  --settings-panel-shadow: rgba(84, 84, 100, 0.18);
+  --footer-bg: #e7dba0;
+  --disclaimer-color: rgba(67, 67, 108, 0.62);
+  --disclaimer-color-mobile: rgba(67, 67, 108, 0.56);
+}
