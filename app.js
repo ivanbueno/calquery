@@ -45,10 +45,18 @@ const STOP_WORDS = new Set([
   "compare", "list", "notable", "entries", "index",
 ]);
 const STARTER_QUERY_MESSAGE_DELAY_MS = 7000;
+const STARTER_QUERY_DISPLAY_COUNT = 3;
 const STARTER_QUERIES = [
-  "How do I file small claims in California?",
-  "What form do I need for divorce?",
-  "How do I respond to a lawsuit?",
+  "How do I file a small claims case?",
+  "What happens after I file a lawsuit?",
+  "How do I respond to a court summons?",
+  "What is the difference between civil and criminal court?",
+  "How do I prepare for a court hearing?",
+  "What documents do I need to start a case?",
+  "What happens if I miss a court deadline?",
+  "How do court filing fees work?",
+  "What does \"motion\" mean in court?",
+  "How long does a court case usually take?",
 ];
 
 if (footerYear) {
@@ -423,10 +431,25 @@ function submitSuggestedQuery(query) {
   submitComposerForm();
 }
 
-function addStarterQueryMessage(queries) {
+function selectRandomQueries(queries, count) {
   const suggestions = Array.isArray(queries)
     ? queries.map((item) => String(item || "").trim()).filter(Boolean)
     : [];
+  if (!suggestions.length) {
+    return [];
+  }
+  const maxCount = Math.max(0, Math.floor(Number(count) || 0));
+  const limitedCount = Math.min(maxCount, suggestions.length);
+  const shuffled = [...suggestions];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled.slice(0, limitedCount);
+}
+
+function addStarterQueryMessage(queries) {
+  const suggestions = selectRandomQueries(queries, STARTER_QUERY_DISPLAY_COUNT);
   if (!suggestions.length) {
     return;
   }
