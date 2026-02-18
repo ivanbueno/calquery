@@ -556,7 +556,7 @@ function loadRoutingMetaPreference() {
   } catch (error) {
     saved = null;
   }
-  setRoutingMetaVisibility(saved !== "0");
+  setRoutingMetaVisibility(saved === "1");
 }
 
 function loadThemePreference() {
