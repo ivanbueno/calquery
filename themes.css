@@ -1,0 +1,54 @@
+:root {
+  --mono: "Source Code Pro", monospace;
+  --sans: "Source Sans 3", sans-serif;
+  --display: "Alegreya SC", serif;
+
+  --base3: #fdf6e3;
+  --base2: #eee8d5;
+  --base1: #93a1a1;
+  --base0: #839496;
+  --base00: #657b83;
+  --base01: #586e75;
+  --yellow: #b58900;
+  --orange: #cb4b16;
+  --red: #dc322f;
+  --magenta: #d33682;
+  --violet: #6c71c4;
+  --blue: #268bd2;
+  --cyan: #2aa198;
+  --green: #859900;
+
+  --ink: var(--base01);
+  --subtle: var(--base00);
+  --line: #d2cab6;
+  --bg: var(--base3);
+  --panel: #f8f1dd;
+  --teal: var(--blue);
+  --teal-soft: #e6f4ef;
+  --user: #e8f6f3;
+
+  --shell-shadow: rgba(88, 110, 117, 0.16);
+  --header-gradient-start: var(--base3);
+  --header-gradient-end: var(--base2);
+  --header-title-shadow: rgba(253, 246, 227, 0.8);
+  --chat-log-bg: #fdf8ee;
+  --message-bg: #fdf9ee;
+  --message-assistant-bg: #faf4e5;
+  --message-user-border: #b9d9d4;
+  --message-system-bg: #f8efd0;
+  --message-system-border: #e0ce93;
+  --content-pre-border: #cdc4af;
+  --content-pre-bg: #f0e8d2;
+  --content-code-bg: #ece4cf;
+  --composer-bg: #f9f2e0;
+  --textarea-border: #cec5b1;
+  --textarea-bg: #fdf8ee;
+  --textarea-focus-outline: rgba(42, 161, 152, 0.35);
+  --button-shadow: rgba(38, 139, 210, 0.24);
+  --settings-focus-outline: rgba(38, 139, 210, 0.35);
+  --settings-panel-bg: #fdf7e7;
+  --settings-panel-shadow: rgba(88, 110, 117, 0.18);
+  --footer-bg: #f5ecd6;
+  --disclaimer-color: rgba(88, 110, 117, 0.62);
+  --disclaimer-color-mobile: rgba(88, 110, 117, 0.56);
+}

@@ -1,9 +1,3 @@
-:root {
-  --mono: "Source Code Pro", monospace;
-  --sans: "Source Sans 3", sans-serif;
-  --display: "Alegreya SC", serif;
-}
-
 * { box-sizing: border-box; }
 
 body {
