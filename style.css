@@ -352,10 +352,6 @@ button:disabled {
   flex: 0 0 auto;
 }
 
-button:disabled .send-icon {
-  animation: send-spin 0.9s linear infinite;
-}
-
 .settings-toggle {
   position: absolute;
   top: 0.82rem;
@@ -440,37 +436,7 @@ button:disabled .send-icon {
   border-color: var(--cyan);
 }
 
-@keyframes send-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.status {
-  margin: 0;
-  color: var(--subtle);
-  font-size: 0.88rem;
-  font-family: var(--mono);
-  display: inline-block;
-  max-width: min(100%, 34rem);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.status.is-processing {
-  border-right: 0.12em solid currentColor;
-  animation: status-caret 0.7s step-end infinite;
-}
-
-@keyframes status-caret {
-  50% { border-right-color: transparent; }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .status.is-processing {
-    animation: status-caret 0.7s step-end infinite;
-  }
-
   .typing-dot {
     animation: none;
     opacity: 0.5;

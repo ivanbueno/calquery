@@ -19,7 +19,6 @@ let analyticsEnabled = false;
 const composer = document.getElementById("composer");
 const queryInput = document.getElementById("queryInput");
 const sendButton = document.getElementById("sendButton");
-const statusText = document.getElementById("statusText");
 const chatLog = document.getElementById("chatLog");
 const footerYear = document.getElementById("footerYear");
 const settingsToggle = document.getElementById("settingsToggle");
@@ -28,8 +27,6 @@ const toggleRoutingMeta = document.getElementById("toggleRoutingMeta");
 const themeSelect = document.getElementById("themeSelect");
 const rootElement = document.documentElement;
 const pageBody = document.body;
-let statusCycleTimer = null;
-let statusCycleRunId = 0;
 let chatScrollRafId = null;
 let typingIndicatorMessage = null;
 const ROUTING_META_HIDDEN_CLASS = "hide-routing-meta";
@@ -39,12 +36,6 @@ const THEME_DEFAULT = "default";
 const THEME_KANAGAWA = "kanagawa";
 const THEME_GRUVBOX_DARK = "gruvbox-dark";
 const SUPPORTED_THEMES = new Set([THEME_DEFAULT, THEME_KANAGAWA, THEME_GRUVBOX_DARK]);
-const STOP_WORDS = new Set([
-  "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "in", "into",
-  "is", "it", "its", "of", "on", "or", "that", "the", "their", "this", "to",
-  "what", "which", "with", "how", "does", "say", "key", "themes", "summarize",
-  "compare", "list", "notable", "entries", "index",
-]);
 const STARTER_QUERY_MESSAGE_DELAY_MS = 7000;
 const STARTER_MESSAGE_DELAY_MS = 500;
 const STARTER_FOLLOWUP_MESSAGE_DELAY_MS = 2000;
@@ -140,13 +131,6 @@ function setProcessingBackground(isActive) {
     return;
   }
   pageBody.classList.toggle("is-processing", Boolean(isActive));
-}
-
-function setStatusProcessingAnimation(isActive) {
-  if (!statusText) {
-    return;
-  }
-  statusText.classList.toggle("is-processing", Boolean(isActive));
 }
 
 function escapeHtml(text) {
@@ -728,151 +712,6 @@ function isInsufficientInformationAnswer(answer) {
   return normalized.includes(INSUFFICIENT_INFORMATION_PHRASE);
 }
 
-function tokenizeKeywords(text) {
-  const tokens = String(text || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]+/g, " ")
-    .split(/\s+/)
-    .map((value) => value.trim())
-    .filter((value) => value.length >= 3 && !STOP_WORDS.has(value));
-  return Array.from(new Set(tokens));
-}
-
-function routeKeywords(route) {
-  const parts = [
-    route && route.index ? String(route.index) : "",
-    route && route.source_file ? String(route.source_file) : "",
-    route && route.description ? String(route.description) : "",
-    ...(route && Array.isArray(route.sample_queries) ? route.sample_queries.map((value) => String(value)) : []),
-  ];
-  return tokenizeKeywords(parts.join(" "));
-}
-
-function buildStatusSteps(query) {
-  const queryKeywords = tokenizeKeywords(query);
-  const scoredRoutes = routes
-    .map((route) => {
-      const keywords = routeKeywords(route);
-      const overlap = keywords.filter((keyword) => queryKeywords.includes(keyword)).length;
-      return { route, keywords, score: overlap };
-    })
-    .sort((a, b) => b.score - a.score || a.route.index.localeCompare(b.route.index));
-
-  const highlighted = scoredRoutes.slice(0, Math.min(3, scoredRoutes.length));
-  const customRouteSteps = highlighted.flatMap((item) => {
-    const label = item.route.index || "index";
-    const topicTerms = item.keywords.slice(0, 2);
-    const topicText = topicTerms.length ? topicTerms.join(" / ") : "domain signals";
-    return [
-      `Scanning ${label} for legal authorities on ${topicText}`,
-      `Framing focused court-research prompt for ${label}`,
-    ];
-  });
-
-  const baseSteps = [
-    "Reviewing your question for jurisdiction and procedure cues",
-    "Identifying parties, filings, deadlines, and legal issues",
-    "Drafting candidate routes across court knowledge indices",
-    "Ranking the most relevant legal research sequence",
-    "Preparing index-specific prompts for statutes and case law",
-  ];
-  const finalizeSteps = [
-    "Executing the selected court research workflow",
-    "Collecting supporting rules, cases, and procedures",
-    "Cross-checking findings across sources and jurisdictions",
-    "Drafting a clear, court-focused response",
-    "Running a final legal-consistency review",
-  ];
-
-  return [...baseSteps, ...customRouteSteps, ...finalizeSteps];
-}
-
-function startStatusCycle(query) {
-  stopStatusCycle();
-  setProcessingBackground(true);
-  setStatusProcessingAnimation(true);
-  statusCycleRunId += 1;
-  const cycleRunId = statusCycleRunId;
-  const steps = buildStatusSteps(query);
-  if (!steps.length) {
-    statusText.textContent = "Working...";
-    return;
-  }
-
-  const typingMinDelayMs = 44;
-  const typingMaxDelayMs = 76;
-  const deletingMinDelayMs = 20;
-  const deletingMaxDelayMs = 38;
-  const holdAfterTypingMs = 650;
-  const holdAfterDeletingMs = 180;
-
-  let stepIndex = 0;
-  let charIndex = 0;
-  let isDeleting = false;
-
-  const easeInOutSine = (progress) => 0.5 - (Math.cos(Math.PI * progress) / 2);
-
-  const easedDelay = (progress, minDelayMs, maxDelayMs) => {
-    const clamped = Math.max(0, Math.min(1, progress));
-    const eased = easeInOutSine(clamped);
-    return Math.round(maxDelayMs - ((maxDelayMs - minDelayMs) * eased));
-  };
-
-  const queueNext = (delayMs) => {
-    statusCycleTimer = window.setTimeout(() => {
-      window.requestAnimationFrame(tick);
-    }, delayMs);
-  };
-
-  const tick = () => {
-    if (cycleRunId !== statusCycleRunId) {
-      return;
-    }
-    const step = steps[stepIndex];
-
-    if (!isDeleting) {
-      charIndex = Math.min(step.length, charIndex + 1);
-      statusText.textContent = step.slice(0, charIndex);
-      if (charIndex < step.length) {
-        const typingProgress = step.length ? charIndex / step.length : 1;
-        queueNext(easedDelay(typingProgress, typingMinDelayMs, typingMaxDelayMs));
-        return;
-      }
-      isDeleting = true;
-      queueNext(holdAfterTypingMs);
-      return;
-    }
-
-    charIndex = Math.max(0, charIndex - 1);
-    statusText.textContent = step.slice(0, charIndex);
-    if (charIndex > 0) {
-      const deletingProgress = step.length ? (step.length - charIndex) / step.length : 1;
-      queueNext(easedDelay(deletingProgress, deletingMinDelayMs, deletingMaxDelayMs));
-      return;
-    }
-
-    stepIndex = (stepIndex + 1) % steps.length;
-    isDeleting = false;
-    queueNext(holdAfterDeletingMs);
-  };
-
-  statusText.textContent = "";
-  tick();
-}
-
-function stopStatusCycle(finalText) {
-  statusCycleRunId += 1;
-  if (statusCycleTimer !== null) {
-    window.clearTimeout(statusCycleTimer);
-    statusCycleTimer = null;
-  }
-  setProcessingBackground(false);
-  setStatusProcessingAnimation(false);
-  if (typeof finalText === "string") {
-    statusText.textContent = finalText;
-  }
-}
-
 async function callOrchestrator(query) {
   if (!orchestratorUrl) {
     throw new Error("Missing orchestrator function URL. Run launch to update app-config.js.");
@@ -914,7 +753,6 @@ composer.addEventListener("submit", async (event) => {
 
   const query = queryInput.value.trim();
   if (!query) {
-    statusText.textContent = "Type a query first.";
     return;
   }
 
@@ -926,7 +764,7 @@ composer.addEventListener("submit", async (event) => {
 
   sendButton.disabled = true;
   queryInput.disabled = true;
-  startStatusCycle(query);
+  setProcessingBackground(true);
   addMessage("user", query);
   queryInput.value = "";
   showTypingIndicator();
@@ -980,16 +818,15 @@ composer.addEventListener("submit", async (event) => {
       source_count: sources.length,
       answer_length: answer.length,
     });
-    stopStatusCycle("Done.");
   } catch (error) {
     hideTypingIndicator();
     addMessage("system", String(error.message || error), "orchestrator");
     trackEvent("query_failed", {
       error_type: classifyErrorType(error),
     });
-    stopStatusCycle("Error.");
   } finally {
     hideTypingIndicator();
+    setProcessingBackground(false);
     sendButton.disabled = false;
     queryInput.disabled = false;
   }
