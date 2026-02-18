@@ -47,6 +47,7 @@ const STOP_WORDS = new Set([
 ]);
 const STARTER_QUERY_MESSAGE_DELAY_MS = 7000;
 const STARTER_QUERY_DISPLAY_COUNT = 3;
+const INSUFFICIENT_INFORMATION_PHRASE = "i do not have enough information";
 const STARTER_QUERIES = [
   "How do I file a small claims case?",
   "What happens after I file a lawsuit?",
@@ -720,6 +721,16 @@ function buildSourcesMarkdown(sources) {
   return `\n\n### Sources\n${lines.join("\n")}`;
 }
 
+function isInsufficientInformationAnswer(answer) {
+  const normalized = String(answer || "")
+    .toLowerCase()
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[`*_#>~[\]()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return normalized.includes(INSUFFICIENT_INFORMATION_PHRASE);
+}
+
 function tokenizeKeywords(text) {
   const tokens = String(text || "")
     .toLowerCase()
@@ -949,7 +960,8 @@ composer.addEventListener("submit", async (event) => {
 
     const answer = String(result.answer || "").trim() || "(no answer field returned)";
     const sources = Array.isArray(result.sources) ? result.sources : [];
-    const sourcesMarkdown = buildSourcesMarkdown(sources);
+    const shouldShowSources = !isInsufficientInformationAnswer(answer);
+    const sourcesMarkdown = shouldShowSources ? buildSourcesMarkdown(sources) : "";
 
     let meta = "";
     if (routedIndices.length > 1) {
