@@ -423,10 +423,6 @@ function showTypingIndicator() {
   const content = document.createElement("div");
   content.className = "content";
 
-  const label = document.createElement("span");
-  label.className = "typing-label";
-  label.textContent = "System is typing";
-
   const dots = document.createElement("span");
   dots.className = "typing-dots";
   dots.setAttribute("aria-hidden", "true");
@@ -436,7 +432,6 @@ function showTypingIndicator() {
     dots.appendChild(dot);
   }
 
-  content.appendChild(label);
   content.appendChild(dots);
   message.appendChild(content);
   chatLog.appendChild(message);
