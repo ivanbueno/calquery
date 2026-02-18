@@ -133,6 +133,21 @@ function setProcessingBackground(isActive) {
   pageBody.classList.toggle("is-processing", Boolean(isActive));
 }
 
+function setSendButtonLoading(isLoading) {
+  if (!sendButton) {
+    return;
+  }
+  if (isLoading) {
+    sendButton.setAttribute("data-loading", "true");
+    sendButton.setAttribute("aria-busy", "true");
+    return;
+  }
+  sendButton.removeAttribute("data-loading");
+  sendButton.setAttribute("aria-busy", "false");
+}
+
+setSendButtonLoading(false);
+
 function escapeHtml(text) {
   return String(text || "")
     .replace(/&/g, "&amp;")
@@ -763,6 +778,7 @@ composer.addEventListener("submit", async (event) => {
   });
 
   sendButton.disabled = true;
+  setSendButtonLoading(true);
   queryInput.disabled = true;
   setProcessingBackground(true);
   addMessage("user", query);
@@ -827,6 +843,7 @@ composer.addEventListener("submit", async (event) => {
   } finally {
     hideTypingIndicator();
     setProcessingBackground(false);
+    setSendButtonLoading(false);
     sendButton.disabled = false;
     queryInput.disabled = false;
   }

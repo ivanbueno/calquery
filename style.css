@@ -340,9 +340,58 @@ button {
   box-shadow: 0 6px 18px var(--button-shadow);
 }
 
+#sendButton {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+#sendButton .send-icon,
+#sendButton > span {
+  position: relative;
+  z-index: 1;
+}
+
+#sendButton[data-loading="true"] {
+  background: var(--send-loading-base);
+  opacity: 1;
+  cursor: wait;
+}
+
+#sendButton[data-loading="true"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    60deg,
+    transparent,
+    transparent 12px,
+    var(--send-loading-stripe) 12px,
+    var(--send-loading-stripe) 24px
+  );
+  background-size: 200% 100%;
+  animation: send-button-loading 1s linear infinite;
+  z-index: 0;
+}
+
+@keyframes send-button-loading {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
 button:disabled {
   opacity: 0.55;
   cursor: wait;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #sendButton[data-loading="true"]::before {
+    animation-duration: 2.2s;
+  }
 }
 
 .send-icon {

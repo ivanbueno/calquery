@@ -41,6 +41,8 @@
   --textarea-bg: #f2ecbc;
   --textarea-focus-outline: rgba(77, 105, 155, 0.35);
   --button-shadow: rgba(77, 105, 155, 0.24);
+  --send-loading-base: var(--teal);
+  --send-loading-stripe: rgba(40, 57, 90, 0.36);
   --settings-focus-outline: rgba(77, 105, 155, 0.35);
   --settings-panel-bg: #dcd5ac;
   --settings-panel-shadow: rgba(84, 84, 100, 0.18);
