@@ -29,6 +29,10 @@ const rootElement = document.documentElement;
 const pageBody = document.body;
 let chatScrollRafId = null;
 let typingIndicatorMessage = null;
+let userHasSubmittedQuery = false;
+let starterMessageTimeoutId = null;
+let starterFollowupTimeoutId = null;
+let starterQueryTimeoutId = null;
 const ROUTING_META_HIDDEN_CLASS = "hide-routing-meta";
 const ROUTING_META_STORAGE_KEY = "calquery-routing-meta-visible";
 const THEME_STORAGE_KEY = "calquery-theme";
@@ -36,7 +40,7 @@ const THEME_DEFAULT = "default";
 const THEME_KANAGAWA = "kanagawa";
 const THEME_GRUVBOX_DARK = "gruvbox-dark";
 const SUPPORTED_THEMES = new Set([THEME_DEFAULT, THEME_KANAGAWA, THEME_GRUVBOX_DARK]);
-const STARTER_QUERY_MESSAGE_DELAY_MS = 7000;
+const STARTER_QUERY_MESSAGE_DELAY_MS = 5000;
 const STARTER_MESSAGE_DELAY_MS = 500;
 const STARTER_FOLLOWUP_MESSAGE_DELAY_MS = 2000;
 const STARTER_QUERY_DISPLAY_COUNT = 3;
@@ -52,6 +56,9 @@ const STARTER_QUERIES = [
   "How do court filing fees work?",
   "What does \"motion\" mean in court?",
   "How long does a court case usually take?",
+  "What deadlines apply after filing an appeal and what steps come next?",
+  "What is the difference between mediation, arbitration, and going to trial?",
+  "How do I challenge evidence or object during a court proceeding?"
 ];
 
 if (footerYear) {
@@ -523,6 +530,21 @@ function addStarterQueryMessage(queries) {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
+function cancelPendingStarterMessages() {
+  if (starterMessageTimeoutId !== null) {
+    window.clearTimeout(starterMessageTimeoutId);
+    starterMessageTimeoutId = null;
+  }
+  if (starterFollowupTimeoutId !== null) {
+    window.clearTimeout(starterFollowupTimeoutId);
+    starterFollowupTimeoutId = null;
+  }
+  if (starterQueryTimeoutId !== null) {
+    window.clearTimeout(starterQueryTimeoutId);
+    starterQueryTimeoutId = null;
+  }
+}
+
 function setRoutingMetaVisibility(isVisible) {
   if (!pageBody) {
     return;
@@ -771,6 +793,9 @@ composer.addEventListener("submit", async (event) => {
     return;
   }
 
+  userHasSubmittedQuery = true;
+  cancelPendingStarterMessages();
+
   trackEvent("query_submitted", {
     query_length: query.length,
     route_count: routes.length,
@@ -856,9 +881,17 @@ const starterSystemMessage = routes.length
   : "No hardcoded routes found. Run launch to generate app-config.js.";
 
 if (routes.length && orchestratorUrl) {
-  window.setTimeout(() => {
+  starterMessageTimeoutId = window.setTimeout(() => {
+    starterMessageTimeoutId = null;
+    if (userHasSubmittedQuery) {
+      return;
+    }
     addMessage("system", starterSystemMessage);
-    window.setTimeout(() => {
+    starterFollowupTimeoutId = window.setTimeout(() => {
+      starterFollowupTimeoutId = null;
+      if (userHasSubmittedQuery) {
+        return;
+      }
       addMessage(
         "system",
         "CalQuery connects your questions to trusted court information and official self-help resources."
@@ -869,7 +902,11 @@ if (routes.length && orchestratorUrl) {
   addMessage("system", starterSystemMessage);
 }
 
-window.setTimeout(() => {
+starterQueryTimeoutId = window.setTimeout(() => {
+  starterQueryTimeoutId = null;
+  if (userHasSubmittedQuery) {
+    return;
+  }
   addStarterQueryMessage(STARTER_QUERIES);
 }, STARTER_QUERY_MESSAGE_DELAY_MS);
 
