@@ -1002,7 +1002,7 @@ addMessage(
   "system",
   routes.length
     ? orchestratorUrl
-      ? "Get instant guidance on California court procedures, forms, and legal processes. CalQuery automatically routes your question to trusted court information and self-help resources."
+      ? "Get clear answers about court procedures, legal forms, and the court process. CalQuery connects your questions to trusted court information and official self-help resources."
       : "Missing orchestrator URL in app-config.js. Re-run launch."
     : "No hardcoded routes found. Run launch to generate app-config.js."
 );
