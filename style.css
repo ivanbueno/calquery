@@ -458,6 +458,10 @@ button:disabled {
   font-weight: 600;
 }
 
+.settings-panel .settings-option + .settings-option {
+  margin-top: 0.24rem;
+}
+
 .settings-option input {
   margin: 0.17rem 0 0;
   accent-color: var(--blue);
