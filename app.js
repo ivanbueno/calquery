@@ -31,6 +31,7 @@ const pageBody = document.body;
 let statusCycleTimer = null;
 let statusCycleRunId = 0;
 let chatScrollRafId = null;
+let typingIndicatorMessage = null;
 const ROUTING_META_HIDDEN_CLASS = "hide-routing-meta";
 const ROUTING_META_STORAGE_KEY = "calquery-routing-meta-visible";
 const THEME_STORAGE_KEY = "calquery-theme";
@@ -408,6 +409,44 @@ function addMessage(role, text, metaText, options = {}) {
     return;
   }
   chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function showTypingIndicator() {
+  hideTypingIndicator();
+
+  const message = document.createElement("article");
+  message.className = "message system typing-indicator";
+
+  const content = document.createElement("div");
+  content.className = "content";
+
+  const label = document.createElement("span");
+  label.className = "typing-label";
+  label.textContent = "System is typing";
+
+  const dots = document.createElement("span");
+  dots.className = "typing-dots";
+  dots.setAttribute("aria-hidden", "true");
+  for (let index = 0; index < 3; index += 1) {
+    const dot = document.createElement("span");
+    dot.className = "typing-dot";
+    dots.appendChild(dot);
+  }
+
+  content.appendChild(label);
+  content.appendChild(dots);
+  message.appendChild(content);
+  chatLog.appendChild(message);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  typingIndicatorMessage = message;
+}
+
+function hideTypingIndicator() {
+  if (!typingIndicatorMessage) {
+    return;
+  }
+  typingIndicatorMessage.remove();
+  typingIndicatorMessage = null;
 }
 
 function submitComposerForm() {
@@ -882,9 +921,11 @@ composer.addEventListener("submit", async (event) => {
   startStatusCycle(query);
   addMessage("user", query);
   queryInput.value = "";
+  showTypingIndicator();
 
   try {
     const result = await callOrchestrator(query);
+    hideTypingIndicator();
     const route = result.route && typeof result.route === "object" ? result.route : {};
 
     const routedIndices = Array.isArray(route.indices)
@@ -932,12 +973,14 @@ composer.addEventListener("submit", async (event) => {
     });
     stopStatusCycle("Done.");
   } catch (error) {
+    hideTypingIndicator();
     addMessage("system", String(error.message || error), "orchestrator");
     trackEvent("query_failed", {
       error_type: classifyErrorType(error),
     });
     stopStatusCycle("Error.");
   } finally {
+    hideTypingIndicator();
     sendButton.disabled = false;
     queryInput.disabled = false;
   }
