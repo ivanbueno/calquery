@@ -44,6 +44,12 @@ const STOP_WORDS = new Set([
   "what", "which", "with", "how", "does", "say", "key", "themes", "summarize",
   "compare", "list", "notable", "entries", "index",
 ]);
+const STARTER_QUERY_MESSAGE_DELAY_MS = 7000;
+const STARTER_QUERIES = [
+  "How do I file small claims in California?",
+  "What form do I need for divorce?",
+  "How do I respond to a lawsuit?",
+];
 
 if (footerYear) {
   footerYear.textContent = String(new Date().getFullYear());
@@ -393,6 +399,68 @@ function addMessage(role, text, metaText, options = {}) {
   if (options.disableAutoScroll === true) {
     return;
   }
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function submitComposerForm() {
+  if (typeof composer.requestSubmit === "function") {
+    composer.requestSubmit();
+    return;
+  }
+  composer.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+}
+
+function submitSuggestedQuery(query) {
+  const suggestion = String(query || "").trim();
+  if (!suggestion) {
+    return;
+  }
+  queryInput.value = suggestion;
+  queryInput.focus();
+  if (sendButton.disabled) {
+    return;
+  }
+  submitComposerForm();
+}
+
+function addStarterQueryMessage(queries) {
+  const suggestions = Array.isArray(queries)
+    ? queries.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  if (!suggestions.length) {
+    return;
+  }
+
+  const message = document.createElement("article");
+  message.className = "message system";
+
+  const textNode = document.createElement("div");
+  textNode.className = "content";
+
+  const intro = document.createElement("p");
+  intro.textContent = "Try asking:";
+  textNode.appendChild(intro);
+
+  const list = document.createElement("ul");
+  for (const suggestion of suggestions) {
+    const item = document.createElement("li");
+    const link = document.createElement("a");
+    link.href = "#";
+    link.textContent = suggestion;
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      trackEvent("starter_query_clicked", {
+        query_length: suggestion.length,
+      });
+      submitSuggestedQuery(suggestion);
+    });
+    item.appendChild(link);
+    list.appendChild(item);
+  }
+  textNode.appendChild(list);
+  message.appendChild(textNode);
+
+  chatLog.appendChild(message);
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
@@ -768,11 +836,7 @@ queryInput.addEventListener("keydown", (event) => {
   if (sendButton.disabled) {
     return;
   }
-  if (typeof composer.requestSubmit === "function") {
-    composer.requestSubmit();
-    return;
-  }
-  composer.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+  submitComposerForm();
 });
 
 composer.addEventListener("submit", async (event) => {
@@ -791,6 +855,7 @@ composer.addEventListener("submit", async (event) => {
   });
 
   sendButton.disabled = true;
+  queryInput.disabled = true;
   startStatusCycle(query);
   addMessage("user", query);
   queryInput.value = "";
@@ -851,6 +916,7 @@ composer.addEventListener("submit", async (event) => {
     stopStatusCycle("Error.");
   } finally {
     sendButton.disabled = false;
+    queryInput.disabled = false;
   }
 });
 
@@ -858,10 +924,14 @@ addMessage(
   "system",
   routes.length
     ? orchestratorUrl
-      ? "Ask questions about California trial courts, legal procedures, and court forms. CalQuery automatically routes your question to trusted court information and self-help resources."
+      ? "Get instant guidance on California court procedures, forms, and legal processes. CalQuery automatically routes your question to trusted court information and self-help resources."
       : "Missing orchestrator URL in app-config.js. Re-run launch."
     : "No hardcoded routes found. Run launch to generate app-config.js."
 );
+
+window.setTimeout(() => {
+  addStarterQueryMessage(STARTER_QUERIES);
+}, STARTER_QUERY_MESSAGE_DELAY_MS);
 
 trackEvent("app_loaded", {
   route_count: routes.length,
