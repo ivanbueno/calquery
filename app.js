@@ -46,6 +46,8 @@ const STOP_WORDS = new Set([
   "compare", "list", "notable", "entries", "index",
 ]);
 const STARTER_QUERY_MESSAGE_DELAY_MS = 7000;
+const STARTER_MESSAGE_DELAY_MS = 500;
+const STARTER_FOLLOWUP_MESSAGE_DELAY_MS = 2000;
 const STARTER_QUERY_DISPLAY_COUNT = 3;
 const INSUFFICIENT_INFORMATION_PHRASE = "i do not have enough information";
 const STARTER_QUERIES = [
@@ -998,14 +1000,25 @@ composer.addEventListener("submit", async (event) => {
   }
 });
 
-addMessage(
-  "system",
-  routes.length
-    ? orchestratorUrl
-      ? "Get clear answers about court procedures, legal forms, and the court process. CalQuery connects your questions to trusted court information and official self-help resources."
-      : "Missing orchestrator URL in app-config.js. Re-run launch."
-    : "No hardcoded routes found. Run launch to generate app-config.js."
-);
+const starterSystemMessage = routes.length
+  ? orchestratorUrl
+    ? "Get clear answers about court procedures, legal forms, and the court process."
+    : "Missing orchestrator URL in app-config.js. Re-run launch."
+  : "No hardcoded routes found. Run launch to generate app-config.js.";
+
+if (routes.length && orchestratorUrl) {
+  window.setTimeout(() => {
+    addMessage("system", starterSystemMessage);
+    window.setTimeout(() => {
+      addMessage(
+        "system",
+        "CalQuery connects your questions to trusted court information and official self-help resources."
+      );
+    }, STARTER_FOLLOWUP_MESSAGE_DELAY_MS);
+  }, STARTER_MESSAGE_DELAY_MS);
+} else {
+  addMessage("system", starterSystemMessage);
+}
 
 window.setTimeout(() => {
   addStarterQueryMessage(STARTER_QUERIES);
