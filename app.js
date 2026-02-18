@@ -717,24 +717,24 @@ function buildStatusSteps(query) {
     const topicTerms = item.keywords.slice(0, 2);
     const topicText = topicTerms.length ? topicTerms.join(" / ") : "domain signals";
     return [
-      `Probing ${label} topics: ${topicText}`,
-      `Shaping retrieval prompt for ${label}`,
+      `Scanning ${label} for legal authorities on ${topicText}`,
+      `Framing focused court-research prompt for ${label}`,
     ];
   });
 
   const baseSteps = [
-    "Parsing query intent and constraints",
-    "Extracting entities, topics, and qualifiers",
-    "Generating candidate multi-index route plans",
-    "Ranking the best logical execution sequence",
-    "Preparing step-by-step index retrieval prompts",
+    "Reviewing your question for jurisdiction and procedure cues",
+    "Identifying parties, filings, deadlines, and legal issues",
+    "Drafting candidate routes across court knowledge indices",
+    "Ranking the most relevant legal research sequence",
+    "Preparing index-specific prompts for statutes and case law",
   ];
   const finalizeSteps = [
-    "Executing orchestrator route plan",
-    "Collecting evidence from routed indices",
-    "Merging cross-index context and sources",
-    "Synthesizing final answer response",
-    "Running final response validation",
+    "Executing the selected court research workflow",
+    "Collecting supporting rules, cases, and procedures",
+    "Cross-checking findings across sources and jurisdictions",
+    "Drafting a clear, court-focused response",
+    "Running a final legal-consistency review",
   ];
 
   return [...baseSteps, ...customRouteSteps, ...finalizeSteps];
