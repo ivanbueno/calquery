@@ -44,6 +44,7 @@ const THEME_KANAGAWA = "kanagawa";
 const THEME_GRUVBOX_DARK = "gruvbox-dark";
 const THEME_COURTYARD = "courtyard";
 const SITE_FILTER_ALL = "__all__";
+const SITE_FILTER_DEFAULT = "self-help";
 const BRAND_LOGO_DEFAULT_SRC = "./images/bear-logo-soft.png?v=1";
 const BRAND_LOGO_LIGHT_SRC = "./images/bear-logo-light.png?v=1";
 const THEMES_WITH_LIGHT_LOGO = new Set([THEME_GRUVBOX_DARK, THEME_COURTYARD]);
@@ -121,6 +122,24 @@ function normalizeSiteFilterValue(siteValue) {
   return SITE_FILTER_ALL;
 }
 
+function normalizeSiteKey(siteValue) {
+  return String(siteValue || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function getDefaultSiteFilterValue() {
+  const targetKey = normalizeSiteKey(SITE_FILTER_DEFAULT);
+  for (const availableSite of AVAILABLE_SITE_FILTERS) {
+    if (normalizeSiteKey(availableSite) === targetKey) {
+      return availableSite;
+    }
+  }
+  return SITE_FILTER_ALL;
+}
+
 function setSiteFilter(siteValue, options = {}) {
   const selectedSiteFilter = normalizeSiteFilterValue(siteValue);
   const shouldPersist = options.persist !== false;
@@ -170,7 +189,12 @@ function loadSiteFilterPreference() {
   } catch (error) {
     saved = null;
   }
-  setSiteFilter(saved, { persist: false });
+  const savedRaw = String(saved || "").trim();
+  if (savedRaw) {
+    setSiteFilter(savedRaw, { persist: false });
+    return;
+  }
+  setSiteFilter(getDefaultSiteFilterValue(), { persist: false });
 }
 
 function getSelectedSiteFilter() {
