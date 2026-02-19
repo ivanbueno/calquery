@@ -1,0 +1,91 @@
+:root[data-theme="courtyard"] {
+  --mono: "Source Code Pro", monospace;
+  --sans: "Lato", sans-serif;
+  --display: "Lora", serif;
+
+  --base3: #f9f9f9;
+  --base2: #f3f3f3;
+  --base1: #919191;
+  --base0: #5c5c5c;
+  --base00: #454545;
+  --base01: #1b1b1b;
+  --yellow: #ffbe2e;
+  --orange: #c05600;
+  --red: #b50909;
+  --magenta: #d72d79;
+  --violet: #8168b3;
+  --blue: #005ea2;
+  --cyan: #28a0cb;
+  --green: #008480;
+
+  --ink: #1b1b1b;
+  --subtle: #5c5c5c;
+  --line: #ffbe2e;
+  --bg: #fef0c8;
+  --panel: #005ea2;
+  --teal: #005ea2;
+  --teal-soft: #eff6fb;
+  --user: #e7f2f5;
+
+  --shell-shadow: rgba(11, 71, 120, 0.32);
+  --header-gradient-start: #0b4778;
+  --header-gradient-end: #005ea2;
+  --header-title-shadow: rgba(255, 255, 255, 0.78);
+  --chat-log-bg: #fef0c8;
+  --message-bg: #fff;
+  --message-assistant-bg: #eff6fb;
+  --message-user-border: #008480;
+  --message-system-bg: #fef0c8;
+  --message-system-border: #e5a000;
+  --content-pre-border: #c9c9c9;
+  --content-pre-bg: #f3f3f3;
+  --content-code-bg: #e7f2f5;
+  --composer-bg: #005ea2;
+  --textarea-border: #ffbe2e;
+  --textarea-bg: #fff;
+  --textarea-focus-outline: rgba(255, 190, 46, 0.58);
+  --button-shadow: rgba(11, 71, 120, 0.28);
+  --send-loading-base: #e5a000;
+  --send-loading-stripe: rgba(31, 48, 62, 0.34);
+  --settings-focus-outline: rgba(0, 94, 162, 0.34);
+  --settings-panel-bg: #fff;
+  --settings-panel-shadow: rgba(31, 48, 62, 0.18);
+  --footer-bg: #e5a000;
+  --disclaimer-color: rgba(69, 69, 69, 0.7);
+  --disclaimer-color-mobile: rgba(69, 69, 69, 0.62);
+}
+
+:root[data-theme="courtyard"] .composer textarea::placeholder {
+  color: #5c5c5c;
+  opacity: 1;
+}
+
+:root[data-theme="courtyard"] #sendButton {
+  background: #ffbe2e;
+  color: #1b1b1b;
+}
+
+:root[data-theme="courtyard"] #sendButton[data-loading="true"] {
+  color: #1b1b1b;
+}
+
+:root[data-theme="courtyard"] .chat-header h1,
+:root[data-theme="courtyard"] .header-lead {
+  color: #fff;
+}
+
+:root[data-theme="courtyard"] .chat-footer p {
+  color: #1b1b1b;
+}
+
+:root[data-theme="courtyard"] .chat-footer a {
+  color: #005ea2;
+}
+
+:root[data-theme="courtyard"] .settings-toggle {
+  color: #fff;
+}
+
+:root[data-theme="courtyard"] .settings-toggle:hover {
+  color: #ffbe2e;
+}

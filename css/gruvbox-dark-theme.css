@@ -1,0 +1,52 @@
+:root[data-theme="gruvbox-dark"] {
+  --base3: #fbf1c7;
+  --base2: #ebdbb2;
+  --base1: #bdae93;
+  --base0: #a89984;
+  --base00: #ebdbb2;
+  --base01: #d5c4a1;
+  --yellow: #fabd2f;
+  --orange: #fe8019;
+  --red: #fb4934;
+  --magenta: #d3869b;
+  --violet: #b16286;
+  --blue: #83a598;
+  --cyan: #8ec07c;
+  --green: #b8bb26;
+
+  --ink: #ebdbb2;
+  --subtle: #a89984;
+  --line: #504945;
+  --bg: #282828;
+  --panel: #32302f;
+  --teal: #458588;
+  --teal-soft: #3c3836;
+  --user: #3c3836;
+
+  --shell-shadow: rgba(0, 0, 0, 0.45);
+  --header-gradient-start: #1d2021;
+  --header-gradient-end: #3c3836;
+  --header-title-shadow: rgba(29, 32, 33, 0.8);
+  --chat-log-bg: #282828;
+  --message-bg: #32302f;
+  --message-assistant-bg: #3c3836;
+  --message-user-border: #458588;
+  --message-system-bg: #3c3836;
+  --message-system-border: #d65d0e;
+  --content-pre-border: #504945;
+  --content-pre-bg: #3c3836;
+  --content-code-bg: #504945;
+  --composer-bg: #32302f;
+  --textarea-border: #504945;
+  --textarea-bg: #1d2021;
+  --textarea-focus-outline: rgba(131, 165, 152, 0.35);
+  --button-shadow: rgba(69, 133, 136, 0.32);
+  --send-loading-base: var(--teal);
+  --send-loading-stripe: rgba(22, 44, 45, 0.42);
+  --settings-focus-outline: rgba(131, 165, 152, 0.35);
+  --settings-panel-bg: #3c3836;
+  --settings-panel-shadow: rgba(0, 0, 0, 0.35);
+  --footer-bg: #3c3836;
+  --disclaimer-color: rgba(189, 174, 147, 0.65);
+  --disclaimer-color-mobile: rgba(189, 174, 147, 0.58);
+}

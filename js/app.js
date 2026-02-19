@@ -1,0 +1,935 @@
+const config = window.RAG_CHATBOT_CONFIG || { routes: [] };
+const routes = Array.isArray(config.routes) ? config.routes : [];
+const orchestrator =
+  config && typeof config === "object" && config.orchestrator && typeof config.orchestrator === "object"
+    ? config.orchestrator
+    : {};
+const orchestratorUrl =
+  typeof orchestrator.function_url === "string" ? orchestrator.function_url.trim() : "";
+const orchestratorName =
+  typeof orchestrator.function_name === "string" ? orchestrator.function_name.trim() : "";
+const analytics =
+  config && typeof config === "object" && config.analytics && typeof config.analytics === "object"
+    ? config.analytics
+    : {};
+const googleTagId =
+  typeof analytics.google_tag_id === "string" ? analytics.google_tag_id.trim() : "";
+let analyticsEnabled = false;
+
+const composer = document.getElementById("composer");
+const queryInput = document.getElementById("queryInput");
+const sendButton = document.getElementById("sendButton");
+const chatLog = document.getElementById("chatLog");
+const footerYear = document.getElementById("footerYear");
+const settingsToggle = document.getElementById("settingsToggle");
+const settingsPanel = document.getElementById("settingsPanel");
+const toggleRoutingMeta = document.getElementById("toggleRoutingMeta");
+const themeSelect = document.getElementById("themeSelect");
+const brandLogo = document.querySelector(".brand-logo");
+const rootElement = document.documentElement;
+const pageBody = document.body;
+let chatScrollRafId = null;
+let typingIndicatorMessage = null;
+let userHasSubmittedQuery = false;
+let starterMessageTimeoutId = null;
+let starterFollowupTimeoutId = null;
+let starterQueryTimeoutId = null;
+const ROUTING_META_HIDDEN_CLASS = "hide-routing-meta";
+const ROUTING_META_STORAGE_KEY = "calquery-routing-meta-visible";
+const THEME_STORAGE_KEY = "calquery-theme";
+const THEME_DEFAULT = "default";
+const THEME_KANAGAWA = "kanagawa";
+const THEME_GRUVBOX_DARK = "gruvbox-dark";
+const THEME_COURTYARD = "courtyard";
+const BRAND_LOGO_DEFAULT_SRC = "./images/bear-logo-soft.png?v=1";
+const BRAND_LOGO_LIGHT_SRC = "./images/bear-logo-light.png?v=1";
+const THEMES_WITH_LIGHT_LOGO = new Set([THEME_GRUVBOX_DARK, THEME_COURTYARD]);
+const SUPPORTED_THEMES = new Set([
+  THEME_DEFAULT,
+  THEME_KANAGAWA,
+  THEME_GRUVBOX_DARK,
+  THEME_COURTYARD,
+]);
+const STARTER_QUERY_MESSAGE_DELAY_MS = 5000;
+const STARTER_MESSAGE_DELAY_MS = 500;
+const STARTER_FOLLOWUP_MESSAGE_DELAY_MS = 2000;
+const STARTER_QUERY_DISPLAY_COUNT = 3;
+const INSUFFICIENT_INFORMATION_PHRASE = "i do not have enough information";
+const STARTER_QUERIES = [
+  "How do I file a small claims case?",
+  "What happens after I file a lawsuit?",
+  "How do I respond to a court summons?",
+  "What is the difference between civil and criminal court?",
+  "How do I prepare for a court hearing?",
+  "What documents do I need to start a case?",
+  "What happens if I miss a court deadline?",
+  "How do court filing fees work?",
+  "What does \"motion\" mean in court?",
+  "How long does a court case usually take?",
+  "What deadlines apply after filing an appeal and what steps come next?",
+  "What is the difference between mediation, arbitration, and going to trial?",
+  "How do I challenge evidence or object during a court proceeding?"
+];
+
+if (footerYear) {
+  footerYear.textContent = String(new Date().getFullYear());
+}
+
+function hasGoogleTagConfig(tagId) {
+  if (!Array.isArray(window.dataLayer) || !tagId) {
+    return false;
+  }
+  return window.dataLayer.some((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return false;
+    }
+    return entry[0] === "config" && entry[1] === tagId;
+  });
+}
+
+function initializeAnalytics() {
+  if (!googleTagId) {
+    return;
+  }
+
+  window.dataLayer = window.dataLayer || [];
+  if (typeof window.gtag !== "function") {
+    window.gtag = function gtag() {
+      window.dataLayer.push(arguments);
+    };
+  }
+
+  const scriptSrc = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(googleTagId)}`;
+  if (!document.querySelector(`script[src="${scriptSrc}"]`)) {
+    const script = document.createElement("script");
+    script.async = true;
+    script.src = scriptSrc;
+    document.head.appendChild(script);
+  }
+
+  if (!hasGoogleTagConfig(googleTagId)) {
+    window.gtag("js", new Date());
+    window.gtag("config", googleTagId);
+  }
+  analyticsEnabled = true;
+}
+
+function trackEvent(name, params = {}) {
+  if (!analyticsEnabled || typeof window.gtag !== "function" || !name) {
+    return;
+  }
+  window.gtag("event", name, params);
+}
+
+function classifyErrorType(error) {
+  const message = String((error && error.message) || error || "").toLowerCase();
+  if (!message) {
+    return "unknown";
+  }
+  if (message.includes("missing orchestrator")) {
+    return "missing_orchestrator";
+  }
+  if (message.includes("request failed")) {
+    return "request_failed";
+  }
+  if (message.includes("non-json response")) {
+    return "invalid_json";
+  }
+  if (message.includes("unexpected orchestrator response")) {
+    return "unexpected_payload";
+  }
+  return "other";
+}
+
+initializeAnalytics();
+
+function setProcessingBackground(isActive) {
+  if (!pageBody) {
+    return;
+  }
+  pageBody.classList.toggle("is-processing", Boolean(isActive));
+}
+
+function setSendButtonLoading(isLoading) {
+  if (!sendButton) {
+    return;
+  }
+  if (isLoading) {
+    sendButton.setAttribute("data-loading", "true");
+    sendButton.setAttribute("aria-busy", "true");
+    return;
+  }
+  sendButton.removeAttribute("data-loading");
+  sendButton.setAttribute("aria-busy", "false");
+}
+
+setSendButtonLoading(false);
+
+function escapeHtml(text) {
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function renderMarkdown(markdown) {
+  const escaped = escapeHtml(String(markdown || "")).replace(/\r\n?/g, "\n");
+  const codeBlocks = [];
+
+  let working = escaped.replace(/```([a-zA-Z0-9_-]+)?\n([\s\S]*?)```/g, (_match, language, code) => {
+    const idx = codeBlocks.length;
+    const className = language ? ` class="language-${language}"` : "";
+    codeBlocks.push(`<pre><code${className}>${code}</code></pre>`);
+    return `@@CODEBLOCK_${idx}@@`;
+  });
+
+  working = working
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/`([^`\n]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*\n]+)\*/g, "<em>$1</em>");
+
+  const parts = [];
+  const listStack = [];
+
+  function openList(type, startNumber = null) {
+    if (type === "ol") {
+      if (typeof startNumber === "number" && Number.isFinite(startNumber) && startNumber > 1) {
+        parts.push(`<ol start="${startNumber}">`);
+      } else {
+        parts.push("<ol>");
+      }
+    } else {
+      parts.push("<ul>");
+    }
+    listStack.push({ type, liOpen: false });
+  }
+
+  function closeCurrentListItem() {
+    const current = listStack[listStack.length - 1];
+    if (!current || !current.liOpen) {
+      return;
+    }
+    parts.push("</li>");
+    current.liOpen = false;
+  }
+
+  function closeCurrentList() {
+    const current = listStack[listStack.length - 1];
+    if (!current) {
+      return;
+    }
+    closeCurrentListItem();
+    parts.push(`</${current.type}>`);
+    listStack.pop();
+  }
+
+  function closeListsToDepth(targetDepth) {
+    while (listStack.length > targetDepth) {
+      closeCurrentList();
+    }
+  }
+
+  function closeLists() {
+    closeListsToDepth(0);
+  }
+
+  function addListItem(type, content, indent, startNumber = null) {
+    let targetDepth = Math.floor(Math.max(0, indent) / 2) + 1;
+    const currentDepth = listStack.length;
+
+    // Heuristic: keep "-" items nested under an active numbered item even when
+    // the model omits indentation after the first nested bullet.
+    const topList = listStack[currentDepth - 1];
+    const parentList = listStack[currentDepth - 2];
+    if (type === "ul" && targetDepth === 1) {
+      if (topList && topList.type === "ol" && topList.liOpen) {
+        targetDepth = currentDepth + 1;
+      } else if (
+        topList &&
+        topList.type === "ul" &&
+        parentList &&
+        parentList.type === "ol"
+      ) {
+        targetDepth = currentDepth;
+      }
+    }
+
+    if (targetDepth > currentDepth + 1) {
+      targetDepth = currentDepth + 1;
+    }
+
+    if (targetDepth > 1) {
+      const parent = listStack[targetDepth - 2];
+      if (!parent || !parent.liOpen) {
+        targetDepth = Math.max(1, currentDepth);
+      }
+    }
+
+    if (targetDepth <= currentDepth) {
+      closeListsToDepth(targetDepth);
+      closeCurrentListItem();
+
+      const active = listStack[listStack.length - 1];
+      if (active && active.type !== type) {
+        closeCurrentList();
+      }
+    }
+
+    if (targetDepth > listStack.length) {
+      openList(type, type === "ol" ? startNumber : null);
+    } else if (!listStack.length || listStack[listStack.length - 1].type !== type) {
+      openList(type, type === "ol" ? startNumber : null);
+    }
+
+    const active = listStack[listStack.length - 1];
+    parts.push(`<li>${content}`);
+    active.liOpen = true;
+  }
+
+  for (const rawLine of working.split("\n")) {
+    const normalizedLine = rawLine.replace(/\t/g, "    ");
+    const trimmed = normalizedLine.trim();
+    const indentMatch = normalizedLine.match(/^ +/);
+    const indent = indentMatch ? indentMatch[0].length : 0;
+
+    if (!trimmed) {
+      // Preserve list context across blank lines so "1." lists with nested bullets
+      // don't get split into separate ordered lists that restart numbering.
+      continue;
+    }
+
+    const codeMatch = trimmed.match(/^@@CODEBLOCK_(\d+)@@$/);
+    if (codeMatch) {
+      closeLists();
+      const idx = Number.parseInt(codeMatch[1], 10);
+      parts.push(codeBlocks[idx] || "");
+      continue;
+    }
+
+    const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      closeLists();
+      const level = headingMatch[1].length;
+      parts.push(`<h${level}>${headingMatch[2]}</h${level}>`);
+      continue;
+    }
+
+    const orderedMatch = trimmed.match(/^(\d+)\.\s+(.+)$/);
+    if (orderedMatch) {
+      const startingNumber = Number.parseInt(orderedMatch[1], 10);
+      addListItem("ol", orderedMatch[2], indent, startingNumber);
+      continue;
+    }
+
+    const unorderedMatch = trimmed.match(/^[-*]\s+(.+)$/);
+    if (unorderedMatch) {
+      addListItem("ul", unorderedMatch[1], indent);
+      continue;
+    }
+
+    closeLists();
+    parts.push(`<p>${trimmed}</p>`);
+  }
+
+  closeLists();
+  return parts.join("") || `<p>${escaped}</p>`;
+}
+
+function smoothScrollChatTo(targetTop, durationMs, onComplete) {
+  if (chatScrollRafId !== null) {
+    cancelAnimationFrame(chatScrollRafId);
+    chatScrollRafId = null;
+  }
+
+  const startTop = chatLog.scrollTop;
+  const delta = targetTop - startTop;
+  if (Math.abs(delta) < 1) {
+    chatLog.scrollTop = targetTop;
+    return;
+  }
+
+  const startTime = performance.now();
+  const total = Math.max(200, Number(durationMs) || 900);
+
+  function easeInOutSine(progress) {
+    return 0.5 - Math.cos(Math.PI * progress) / 2;
+  }
+
+  function tick(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(1, elapsed / total);
+    chatLog.scrollTop = startTop + delta * easeInOutSine(progress);
+
+    if (progress < 1) {
+      chatScrollRafId = requestAnimationFrame(tick);
+      return;
+    }
+    chatScrollRafId = null;
+    if (typeof onComplete === "function") {
+      onComplete();
+    }
+  }
+
+  chatScrollRafId = requestAnimationFrame(tick);
+}
+
+function targetTopForMessage(message, topOffset) {
+  const offset = Number(topOffset) || 0;
+  const chatRect = chatLog.getBoundingClientRect();
+  const messageRect = message.getBoundingClientRect();
+  const rawTarget = chatLog.scrollTop + (messageRect.top - chatRect.top) - offset;
+  const maxTarget = Math.max(0, chatLog.scrollHeight - chatLog.clientHeight);
+  return Math.min(maxTarget, Math.max(0, rawTarget));
+}
+
+function addMessage(role, text, metaText, options = {}) {
+  const message = document.createElement("article");
+  message.className = `message ${role}`;
+  if (options.messageType === "routing-system") {
+    message.classList.add("routing-system-message");
+  }
+
+  const textNode = document.createElement("div");
+  textNode.className = "content";
+  if (role === "assistant" || options.renderMarkdown === true) {
+    textNode.innerHTML = renderMarkdown(text);
+  } else {
+    textNode.textContent = text;
+  }
+  message.appendChild(textNode);
+
+  if (metaText) {
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    if (options.metaType === "routing") {
+      meta.classList.add("routing-meta");
+    }
+    meta.textContent = metaText;
+    message.appendChild(meta);
+  }
+
+  chatLog.appendChild(message);
+  if (role === "assistant") {
+    // Align the beginning of the answer a bit below the top edge.
+    const topOffset = 28;
+    requestAnimationFrame(() => {
+      const targetTop = targetTopForMessage(message, topOffset);
+      smoothScrollChatTo(targetTop, 1100, () => {
+        // Correct any tiny post-layout drift so the top aligns exactly.
+        chatLog.scrollTop = targetTopForMessage(message, topOffset);
+      });
+    });
+    return;
+  }
+  if (options.disableAutoScroll === true) {
+    return;
+  }
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function showTypingIndicator() {
+  hideTypingIndicator();
+
+  const message = document.createElement("article");
+  message.className = "message system typing-indicator";
+
+  const content = document.createElement("div");
+  content.className = "content";
+
+  const dots = document.createElement("span");
+  dots.className = "typing-dots";
+  dots.setAttribute("aria-hidden", "true");
+  for (let index = 0; index < 3; index += 1) {
+    const dot = document.createElement("span");
+    dot.className = "typing-dot";
+    dots.appendChild(dot);
+  }
+
+  content.appendChild(dots);
+  message.appendChild(content);
+  chatLog.appendChild(message);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  typingIndicatorMessage = message;
+}
+
+function hideTypingIndicator() {
+  if (!typingIndicatorMessage) {
+    return;
+  }
+  typingIndicatorMessage.remove();
+  typingIndicatorMessage = null;
+}
+
+function submitComposerForm() {
+  if (typeof composer.requestSubmit === "function") {
+    composer.requestSubmit();
+    return;
+  }
+  composer.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+}
+
+function submitSuggestedQuery(query) {
+  const suggestion = String(query || "").trim();
+  if (!suggestion) {
+    return;
+  }
+  queryInput.value = suggestion;
+  queryInput.focus();
+  if (sendButton.disabled) {
+    return;
+  }
+  submitComposerForm();
+}
+
+function selectRandomQueries(queries, count) {
+  const suggestions = Array.isArray(queries)
+    ? queries.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  if (!suggestions.length) {
+    return [];
+  }
+  const maxCount = Math.max(0, Math.floor(Number(count) || 0));
+  const limitedCount = Math.min(maxCount, suggestions.length);
+  const shuffled = [...suggestions];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled.slice(0, limitedCount);
+}
+
+function addStarterQueryMessage(queries) {
+  const suggestions = selectRandomQueries(queries, STARTER_QUERY_DISPLAY_COUNT);
+  if (!suggestions.length) {
+    return;
+  }
+
+  const message = document.createElement("article");
+  message.className = "message system";
+
+  const textNode = document.createElement("div");
+  textNode.className = "content";
+
+  const intro = document.createElement("p");
+  intro.textContent = "Try asking:";
+  textNode.appendChild(intro);
+
+  const list = document.createElement("ul");
+  for (const suggestion of suggestions) {
+    const item = document.createElement("li");
+    const link = document.createElement("a");
+    link.href = "#";
+    link.textContent = suggestion;
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      trackEvent("starter_query_clicked", {
+        query_length: suggestion.length,
+      });
+      submitSuggestedQuery(suggestion);
+    });
+    item.appendChild(link);
+    list.appendChild(item);
+  }
+  textNode.appendChild(list);
+  message.appendChild(textNode);
+
+  chatLog.appendChild(message);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function cancelPendingStarterMessages() {
+  if (starterMessageTimeoutId !== null) {
+    window.clearTimeout(starterMessageTimeoutId);
+    starterMessageTimeoutId = null;
+  }
+  if (starterFollowupTimeoutId !== null) {
+    window.clearTimeout(starterFollowupTimeoutId);
+    starterFollowupTimeoutId = null;
+  }
+  if (starterQueryTimeoutId !== null) {
+    window.clearTimeout(starterQueryTimeoutId);
+    starterQueryTimeoutId = null;
+  }
+}
+
+function setRoutingMetaVisibility(isVisible) {
+  if (!pageBody) {
+    return;
+  }
+  pageBody.classList.toggle(ROUTING_META_HIDDEN_CLASS, !isVisible);
+  if (toggleRoutingMeta && toggleRoutingMeta.checked !== isVisible) {
+    toggleRoutingMeta.checked = isVisible;
+  }
+  try {
+    window.localStorage.setItem(ROUTING_META_STORAGE_KEY, isVisible ? "1" : "0");
+  } catch (error) {
+    // Ignore storage failures in private mode or restricted environments.
+  }
+}
+
+function normalizeThemeName(themeName) {
+  if (typeof themeName !== "string") {
+    return THEME_DEFAULT;
+  }
+  const normalized = themeName.trim().toLowerCase();
+  if (SUPPORTED_THEMES.has(normalized)) {
+    return normalized;
+  }
+  return THEME_DEFAULT;
+}
+
+function setTheme(themeName, options = {}) {
+  const selectedTheme = normalizeThemeName(themeName);
+  const shouldPersist = options.persist !== false;
+
+  if (rootElement) {
+    if (selectedTheme === THEME_DEFAULT) {
+      rootElement.removeAttribute("data-theme");
+    } else {
+      rootElement.setAttribute("data-theme", selectedTheme);
+    }
+  }
+
+  if (themeSelect && themeSelect.value !== selectedTheme) {
+    themeSelect.value = selectedTheme;
+  }
+
+  if (brandLogo) {
+    const nextLogoSrc = THEMES_WITH_LIGHT_LOGO.has(selectedTheme)
+      ? BRAND_LOGO_LIGHT_SRC
+      : BRAND_LOGO_DEFAULT_SRC;
+    if (brandLogo.getAttribute("src") !== nextLogoSrc) {
+      brandLogo.setAttribute("src", nextLogoSrc);
+    }
+  }
+
+  if (shouldPersist) {
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, selectedTheme);
+    } catch (error) {
+      // Ignore storage failures in private mode or restricted environments.
+    }
+  }
+
+  return selectedTheme;
+}
+
+function setSettingsPanelOpen(isOpen) {
+  if (!settingsToggle || !settingsPanel) {
+    return;
+  }
+  const open = Boolean(isOpen);
+  settingsPanel.hidden = !open;
+  settingsToggle.setAttribute("aria-expanded", String(open));
+}
+
+function loadRoutingMetaPreference() {
+  let saved = null;
+  try {
+    saved = window.localStorage.getItem(ROUTING_META_STORAGE_KEY);
+  } catch (error) {
+    saved = null;
+  }
+  setRoutingMetaVisibility(saved === "1");
+}
+
+function loadThemePreference() {
+  let saved = null;
+  try {
+    saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+  } catch (error) {
+    saved = null;
+  }
+  setTheme(saved, { persist: false });
+}
+
+loadThemePreference();
+loadRoutingMetaPreference();
+
+if (toggleRoutingMeta) {
+  toggleRoutingMeta.addEventListener("change", (event) => {
+    setRoutingMetaVisibility(Boolean(event.target.checked));
+    trackEvent("routing_meta_toggled", {
+      visible: event.target.checked ? 1 : 0,
+    });
+  });
+}
+
+if (themeSelect) {
+  themeSelect.addEventListener("change", (event) => {
+    const selectedTheme = setTheme(event.target.value);
+    trackEvent("theme_toggled", { theme: selectedTheme });
+  });
+}
+
+if (settingsToggle && settingsPanel) {
+  settingsToggle.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setSettingsPanelOpen(settingsPanel.hidden);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (settingsPanel.hidden) {
+      return;
+    }
+    if (settingsPanel.contains(event.target) || settingsToggle.contains(event.target)) {
+      return;
+    }
+    setSettingsPanelOpen(false);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || settingsPanel.hidden) {
+      return;
+    }
+    setSettingsPanelOpen(false);
+    settingsToggle.focus();
+  });
+}
+
+function parseLambdaPayload(payload) {
+  if (payload && typeof payload === "object" && typeof payload.body === "string") {
+    try {
+      return JSON.parse(payload.body);
+    } catch (err) {
+      return payload;
+    }
+  }
+  return payload;
+}
+
+function parseJsonResponse(text) {
+  const raw = String(text || "").trim();
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    throw new Error(`Non-JSON response: ${text}`);
+  }
+}
+
+function isHttpUrl(value) {
+  if (typeof value !== "string" || !value.trim()) {
+    return false;
+  }
+  try {
+    const parsed = new URL(value.trim());
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch (error) {
+    return false;
+  }
+}
+
+function buildSourcesMarkdown(sources) {
+  if (!Array.isArray(sources) || !sources.length) {
+    return "";
+  }
+
+  const lines = [];
+  const seen = new Set();
+  for (const source of sources) {
+    if (!source || typeof source !== "object") {
+      continue;
+    }
+    const url = typeof source.url === "string" ? source.url.trim() : "";
+    if (!isHttpUrl(url)) {
+      continue;
+    }
+
+    const title = typeof source.title === "string" ? source.title.trim() : "";
+    const safeTitle = (title || url).replace(/\[/g, "(").replace(/\]/g, ")");
+    const key = `${safeTitle}::${url}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    lines.push(`- [${safeTitle}](${url})`);
+  }
+
+  if (!lines.length) {
+    return "";
+  }
+  return `\n\n### Sources\n${lines.join("\n")}`;
+}
+
+function isInsufficientInformationAnswer(answer) {
+  const normalized = String(answer || "")
+    .toLowerCase()
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[`*_#>~[\]()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return normalized.includes(INSUFFICIENT_INFORMATION_PHRASE);
+}
+
+async function callOrchestrator(query) {
+  if (!orchestratorUrl) {
+    throw new Error("Missing orchestrator function URL. Run launch to update app-config.js.");
+  }
+
+  const response = await fetch(orchestratorUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+
+  const text = await response.text();
+  const payload = parseJsonResponse(text);
+  const normalized = parseLambdaPayload(payload);
+
+  if (!response.ok) {
+    throw new Error(normalized.error || normalized.Message || `Request failed (${response.status}).`);
+  }
+  if (!normalized || typeof normalized !== "object") {
+    throw new Error("Unexpected orchestrator response payload.");
+  }
+  return normalized;
+}
+
+// Enter sends the request; Shift+Enter inserts a newline.
+queryInput.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
+    return;
+  }
+  event.preventDefault();
+  if (sendButton.disabled) {
+    return;
+  }
+  submitComposerForm();
+});
+
+composer.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const query = queryInput.value.trim();
+  if (!query) {
+    return;
+  }
+
+  userHasSubmittedQuery = true;
+  cancelPendingStarterMessages();
+
+  trackEvent("query_submitted", {
+    query_length: query.length,
+    route_count: routes.length,
+    has_orchestrator: orchestratorUrl ? 1 : 0,
+  });
+
+  sendButton.disabled = true;
+  setSendButtonLoading(true);
+  queryInput.disabled = true;
+  setProcessingBackground(true);
+  addMessage("user", query);
+  queryInput.value = "";
+  showTypingIndicator();
+
+  try {
+    const result = await callOrchestrator(query);
+    hideTypingIndicator();
+    const route = result.route && typeof result.route === "object" ? result.route : {};
+
+    const routedIndices = Array.isArray(route.indices)
+      ? route.indices.map((value) => String(value || "").trim()).filter(Boolean)
+      : [];
+    const selectedIndex = routedIndices[0] || String(route.index || "").trim();
+
+    if (selectedIndex || route.reason || routedIndices.length) {
+      const routeLabel = routedIndices.length > 1
+        ? `Auto-selected sequence: ${routedIndices.join(" -> ")}`
+        : selectedIndex
+          ? `Auto-selected index '${selectedIndex}'.`
+          : "Routing completed.";
+      const routeMeta = String(route.reason || "").trim() || undefined;
+      addMessage("system", routeLabel, routeMeta, { metaType: "routing", messageType: "routing-system" });
+      trackEvent("route_selected", {
+        selected_index: selectedIndex || "none",
+        routed_count: routedIndices.length || (selectedIndex ? 1 : 0),
+      });
+    }
+
+    const answer = String(result.answer || "").trim() || "(no answer field returned)";
+    const sources = Array.isArray(result.sources) ? result.sources : [];
+    const shouldShowSources = !isInsufficientInformationAnswer(answer);
+    const sourcesMarkdown = shouldShowSources ? buildSourcesMarkdown(sources) : "";
+
+    let meta = "";
+    if (routedIndices.length > 1) {
+      meta = routedIndices.join(" -> ");
+    } else if (selectedIndex) {
+      meta = selectedIndex;
+    }
+
+    addMessage("assistant", answer, meta, { metaType: "routing" });
+    if (sourcesMarkdown) {
+      addMessage("system", sourcesMarkdown.trim(), undefined, {
+        renderMarkdown: true,
+        disableAutoScroll: true,
+      });
+    }
+    trackEvent("query_succeeded", {
+      selected_index: selectedIndex || "none",
+      routed_count: routedIndices.length || (selectedIndex ? 1 : 0),
+      source_count: sources.length,
+      answer_length: answer.length,
+    });
+  } catch (error) {
+    hideTypingIndicator();
+    addMessage("system", String(error.message || error), "orchestrator");
+    trackEvent("query_failed", {
+      error_type: classifyErrorType(error),
+    });
+  } finally {
+    hideTypingIndicator();
+    setProcessingBackground(false);
+    setSendButtonLoading(false);
+    sendButton.disabled = false;
+    queryInput.disabled = false;
+  }
+});
+
+const starterSystemMessage = routes.length
+  ? orchestratorUrl
+    ? "Get clear answers about court procedures, legal forms, and the court process."
+    : "Missing orchestrator URL in app-config.js. Re-run launch."
+  : "No hardcoded routes found. Run launch to generate app-config.js.";
+
+if (routes.length && orchestratorUrl) {
+  starterMessageTimeoutId = window.setTimeout(() => {
+    starterMessageTimeoutId = null;
+    if (userHasSubmittedQuery) {
+      return;
+    }
+    addMessage("system", starterSystemMessage);
+    starterFollowupTimeoutId = window.setTimeout(() => {
+      starterFollowupTimeoutId = null;
+      if (userHasSubmittedQuery) {
+        return;
+      }
+      addMessage(
+        "system",
+        "CalQuery connects your questions to trusted court information and official self-help resources."
+      );
+    }, STARTER_FOLLOWUP_MESSAGE_DELAY_MS);
+  }, STARTER_MESSAGE_DELAY_MS);
+} else {
+  addMessage("system", starterSystemMessage);
+}
+
+starterQueryTimeoutId = window.setTimeout(() => {
+  starterQueryTimeoutId = null;
+  if (userHasSubmittedQuery) {
+    return;
+  }
+  addStarterQueryMessage(STARTER_QUERIES);
+}, STARTER_QUERY_MESSAGE_DELAY_MS);
+
+trackEvent("app_loaded", {
+  route_count: routes.length,
+  has_orchestrator: orchestratorUrl ? 1 : 0,
+});
