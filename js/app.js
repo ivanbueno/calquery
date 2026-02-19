@@ -289,6 +289,10 @@ function renderMarkdown(markdown) {
 
   working = working
     .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(
+      /(<a [^>]+>[^<]+<\/a>)\s+\(((?:www\.)?[a-z0-9.-]+\.[a-z]{2,}(?::\d{1,5})?)\)/gi,
+      '$1 <span class="source-domain">($2)</span>'
+    )
     .replace(/`([^`\n]+)`/g, "<code>$1</code>")
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*\n]+)\*/g, "<em>$1</em>");
@@ -839,6 +843,18 @@ function isHttpUrl(value) {
   }
 }
 
+function getDisplayDomain(url) {
+  if (!isHttpUrl(url)) {
+    return "";
+  }
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return hostname.startsWith("www.") ? hostname.slice(4) : hostname;
+  } catch (error) {
+    return "";
+  }
+}
+
 function buildSourcesMarkdown(sources) {
   if (!Array.isArray(sources) || !sources.length) {
     return "";
@@ -857,12 +873,13 @@ function buildSourcesMarkdown(sources) {
 
     const title = typeof source.title === "string" ? source.title.trim() : "";
     const safeTitle = (title || url).replace(/\[/g, "(").replace(/\]/g, ")");
+    const domain = getDisplayDomain(url);
     const key = `${safeTitle}::${url}`;
     if (seen.has(key)) {
       continue;
     }
     seen.add(key);
-    lines.push(`- [${safeTitle}](${url})`);
+    lines.push(domain ? `- [${safeTitle}](${url}) (${domain})` : `- [${safeTitle}](${url})`);
   }
 
   if (!lines.length) {

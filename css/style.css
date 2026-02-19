@@ -288,6 +288,11 @@ body.hide-routing-meta .message.system.routing-system-message {
   text-decoration: underline;
 }
 
+.content .source-domain {
+  font-size: 0.82em;
+  color: var(--subtle);
+}
+
 .composer {
   border-top: 1px solid var(--line);
   padding: 0.8rem;
