@@ -25,6 +25,7 @@ const settingsToggle = document.getElementById("settingsToggle");
 const settingsPanel = document.getElementById("settingsPanel");
 const toggleRoutingMeta = document.getElementById("toggleRoutingMeta");
 const themeSelect = document.getElementById("themeSelect");
+const siteSelect = document.getElementById("siteSelect");
 const brandLogo = document.querySelector(".brand-logo");
 const rootElement = document.documentElement;
 const pageBody = document.body;
@@ -37,10 +38,12 @@ let starterQueryTimeoutId = null;
 const ROUTING_META_HIDDEN_CLASS = "hide-routing-meta";
 const ROUTING_META_STORAGE_KEY = "calquery-routing-meta-visible";
 const THEME_STORAGE_KEY = "calquery-theme";
+const SITE_FILTER_STORAGE_KEY = "calquery-site-filter";
 const THEME_DEFAULT = "default";
 const THEME_KANAGAWA = "kanagawa";
 const THEME_GRUVBOX_DARK = "gruvbox-dark";
 const THEME_COURTYARD = "courtyard";
+const SITE_FILTER_ALL = "__all__";
 const BRAND_LOGO_DEFAULT_SRC = "./images/bear-logo-soft.png?v=1";
 const BRAND_LOGO_LIGHT_SRC = "./images/bear-logo-light.png?v=1";
 const THEMES_WITH_LIGHT_LOGO = new Set([THEME_GRUVBOX_DARK, THEME_COURTYARD]);
@@ -50,6 +53,7 @@ const SUPPORTED_THEMES = new Set([
   THEME_GRUVBOX_DARK,
   THEME_COURTYARD,
 ]);
+const AVAILABLE_SITE_FILTERS = extractSiteFilters(routes);
 const STARTER_QUERY_MESSAGE_DELAY_MS = 5000;
 const STARTER_MESSAGE_DELAY_MS = 500;
 const STARTER_FOLLOWUP_MESSAGE_DELAY_MS = 2000;
@@ -73,6 +77,104 @@ const STARTER_QUERIES = [
 
 if (footerYear) {
   footerYear.textContent = String(new Date().getFullYear());
+}
+
+function extractSiteFilters(routeItems) {
+  const uniqueByKey = new Map();
+  if (!Array.isArray(routeItems)) {
+    return [];
+  }
+
+  for (const routeItem of routeItems) {
+    if (!routeItem || typeof routeItem !== "object") {
+      continue;
+    }
+    const routeSites = Array.isArray(routeItem.sites) ? routeItem.sites : [];
+    for (const rawSite of routeSites) {
+      const siteName = String(rawSite || "").trim();
+      if (!siteName) {
+        continue;
+      }
+      const siteKey = siteName.toLowerCase();
+      if (!uniqueByKey.has(siteKey)) {
+        uniqueByKey.set(siteKey, siteName);
+      }
+    }
+  }
+
+  return Array.from(uniqueByKey.values()).sort((left, right) =>
+    left.localeCompare(right, undefined, { sensitivity: "base" })
+  );
+}
+
+function normalizeSiteFilterValue(siteValue) {
+  const normalized = String(siteValue || "").trim();
+  if (!normalized || normalized === SITE_FILTER_ALL) {
+    return SITE_FILTER_ALL;
+  }
+  const normalizedKey = normalized.toLowerCase();
+  for (const availableSite of AVAILABLE_SITE_FILTERS) {
+    if (availableSite.toLowerCase() === normalizedKey) {
+      return availableSite;
+    }
+  }
+  return SITE_FILTER_ALL;
+}
+
+function setSiteFilter(siteValue, options = {}) {
+  const selectedSiteFilter = normalizeSiteFilterValue(siteValue);
+  const shouldPersist = options.persist !== false;
+
+  if (siteSelect && siteSelect.value !== selectedSiteFilter) {
+    siteSelect.value = selectedSiteFilter;
+  }
+
+  if (shouldPersist) {
+    try {
+      window.localStorage.setItem(SITE_FILTER_STORAGE_KEY, selectedSiteFilter);
+    } catch (error) {
+      // Ignore storage failures in private mode or restricted environments.
+    }
+  }
+
+  return selectedSiteFilter;
+}
+
+function populateSiteFilterOptions() {
+  if (!siteSelect) {
+    return;
+  }
+
+  const previousSelection = normalizeSiteFilterValue(siteSelect.value);
+  siteSelect.innerHTML = "";
+
+  const allOption = document.createElement("option");
+  allOption.value = SITE_FILTER_ALL;
+  allOption.textContent = "All Sites";
+  siteSelect.appendChild(allOption);
+
+  for (const siteName of AVAILABLE_SITE_FILTERS) {
+    const option = document.createElement("option");
+    option.value = siteName;
+    option.textContent = siteName;
+    siteSelect.appendChild(option);
+  }
+
+  siteSelect.value = previousSelection;
+}
+
+function loadSiteFilterPreference() {
+  let saved = null;
+  try {
+    saved = window.localStorage.getItem(SITE_FILTER_STORAGE_KEY);
+  } catch (error) {
+    saved = null;
+  }
+  setSiteFilter(saved, { persist: false });
+}
+
+function getSelectedSiteFilter() {
+  return normalizeSiteFilterValue(siteSelect ? siteSelect.value : SITE_FILTER_ALL);
 }
 
 function hasGoogleTagConfig(tagId) {
@@ -648,6 +750,8 @@ function loadThemePreference() {
 
 loadThemePreference();
 loadRoutingMetaPreference();
+populateSiteFilterOptions();
+loadSiteFilterPreference();
 
 if (toggleRoutingMeta) {
   toggleRoutingMeta.addEventListener("change", (event) => {
@@ -662,6 +766,15 @@ if (themeSelect) {
   themeSelect.addEventListener("change", (event) => {
     const selectedTheme = setTheme(event.target.value);
     trackEvent("theme_toggled", { theme: selectedTheme });
+  });
+}
+
+if (siteSelect) {
+  siteSelect.addEventListener("change", (event) => {
+    const selectedSite = setSiteFilter(event.target.value);
+    trackEvent("site_filter_toggled", {
+      site: selectedSite === SITE_FILTER_ALL ? "all" : selectedSite,
+    });
   });
 }
 
@@ -768,15 +881,29 @@ function isInsufficientInformationAnswer(answer) {
   return normalized.includes(INSUFFICIENT_INFORMATION_PHRASE);
 }
 
-async function callOrchestrator(query) {
+function getRequestSiteFilter(siteFilterValue) {
+  const selectedSite = normalizeSiteFilterValue(siteFilterValue);
+  if (selectedSite === SITE_FILTER_ALL) {
+    return "";
+  }
+  return selectedSite;
+}
+
+async function callOrchestrator(query, siteFilter) {
   if (!orchestratorUrl) {
     throw new Error("Missing orchestrator function URL. Run launch to update app-config.js.");
+  }
+
+  const requestPayload = { query };
+  const selectedSite = getRequestSiteFilter(siteFilter);
+  if (selectedSite) {
+    requestPayload.site = selectedSite;
   }
 
   const response = await fetch(orchestratorUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify(requestPayload),
   });
 
   const text = await response.text();
@@ -814,11 +941,13 @@ composer.addEventListener("submit", async (event) => {
 
   userHasSubmittedQuery = true;
   cancelPendingStarterMessages();
+  const selectedSiteFilter = getSelectedSiteFilter();
 
   trackEvent("query_submitted", {
     query_length: query.length,
     route_count: routes.length,
     has_orchestrator: orchestratorUrl ? 1 : 0,
+    site_filter: selectedSiteFilter === SITE_FILTER_ALL ? "all" : selectedSiteFilter,
   });
 
   sendButton.disabled = true;
@@ -830,7 +959,7 @@ composer.addEventListener("submit", async (event) => {
   showTypingIndicator();
 
   try {
-    const result = await callOrchestrator(query);
+    const result = await callOrchestrator(query, selectedSiteFilter);
     hideTypingIndicator();
     const route = result.route && typeof result.route === "object" ? result.route : {};
 
@@ -850,6 +979,7 @@ composer.addEventListener("submit", async (event) => {
       trackEvent("route_selected", {
         selected_index: selectedIndex || "none",
         routed_count: routedIndices.length || (selectedIndex ? 1 : 0),
+        site_filter: selectedSiteFilter === SITE_FILTER_ALL ? "all" : selectedSiteFilter,
       });
     }
 
@@ -877,12 +1007,14 @@ composer.addEventListener("submit", async (event) => {
       routed_count: routedIndices.length || (selectedIndex ? 1 : 0),
       source_count: sources.length,
       answer_length: answer.length,
+      site_filter: selectedSiteFilter === SITE_FILTER_ALL ? "all" : selectedSiteFilter,
     });
   } catch (error) {
     hideTypingIndicator();
     addMessage("system", String(error.message || error), "orchestrator");
     trackEvent("query_failed", {
       error_type: classifyErrorType(error),
+      site_filter: selectedSiteFilter === SITE_FILTER_ALL ? "all" : selectedSiteFilter,
     });
   } finally {
     hideTypingIndicator();

@@ -1,5 +1,5 @@
 window.RAG_CHATBOT_CONFIG = {
-  "generated_at": "2026-02-19T07:30:16.540943+00:00",
+  "generated_at": "2026-02-19T08:17:10.332137+00:00",
   "orchestrator": {
     "function_name": "rag-chatbot-orchestrator-router",
     "function_url": "https://7l4kabvoccado2jm2hvlqbrfpu0bfjeo.lambda-url.us-east-1.on.aws/"
@@ -11,6 +11,10 @@ window.RAG_CHATBOT_CONFIG = {
       "function_name": "rag-chatbot-jcc",
       "function_url": "https://fiqbsmrdn62rnt4ae23wx7xhay0voqbo.lambda-url.us-east-1.on.aws/",
       "description": "Index jcc: 3749 rows from jcc.csv. categories: Rules, Civil, Judge. primary host: courts.ca.gov. example topics: Learn your options; You were served divorce papers.",
+      "sites": [
+        "Judicial Council",
+        "Self Help"
+      ],
       "sample_queries": [
         "Summarize key themes in jcc.",
         "List notable entries from jcc.",
