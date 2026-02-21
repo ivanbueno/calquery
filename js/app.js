@@ -30,7 +30,6 @@ const brandLogo = document.querySelector(".brand-logo");
 const rootElement = document.documentElement;
 const pageBody = document.body;
 let chatScrollRafId = null;
-let typingIndicatorMessage = null;
 let userHasSubmittedQuery = false;
 let starterMessageTimeoutId = null;
 let starterFollowupTimeoutId = null;
@@ -60,11 +59,6 @@ const STARTER_MESSAGE_DELAY_MS = 500;
 const STARTER_FOLLOWUP_MESSAGE_DELAY_MS = 2000;
 const STARTER_QUERY_DISPLAY_COUNT = 3;
 const INSUFFICIENT_INFORMATION_PHRASE = "i do not have enough information";
-const STREAM_RENDER_MIN_CHARS = 28;
-const STREAM_RENDER_MAX_CHARS = 140;
-const STREAM_RENDER_MAX_TICKS = 70;
-const STREAM_RENDER_MIN_TOTAL_MS = 260;
-const STREAM_RENDER_MAX_TOTAL_MS = 1800;
 const STARTER_QUERIES = [
   "How do I file a small claims case?",
   "What happens after I file a lawsuit?",
@@ -575,102 +569,69 @@ function addMessage(role, text, metaText, options = {}) {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-function splitAnswerForStreaming(answerText, targetChunkSize) {
-  const segments = String(answerText || "").match(/\S+\s*/g);
-  if (!Array.isArray(segments) || !segments.length) {
-    const raw = String(answerText || "");
-    return raw ? [raw] : [];
-  }
-
-  const chunks = [];
-  let currentChunk = "";
-  for (const segment of segments) {
-    if (currentChunk.length + segment.length > targetChunkSize && currentChunk) {
-      chunks.push(currentChunk);
-      currentChunk = "";
-    }
-    currentChunk += segment;
-  }
-  if (currentChunk) {
-    chunks.push(currentChunk);
-  }
-  return chunks;
-}
-
-function calculateStreamChunkSize(answerLength) {
-  const safeLength = Math.max(1, Math.floor(Number(answerLength) || 0));
-  const estimated = Math.ceil(safeLength / STREAM_RENDER_MAX_TICKS);
-  return Math.min(STREAM_RENDER_MAX_CHARS, Math.max(STREAM_RENDER_MIN_CHARS, estimated));
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
-}
-
-async function addStreamingAssistantMessage(answer, metaText, options = {}) {
-  const fullAnswer = String(answer || "");
-  const { message, textNode } = createMessageElements("assistant", metaText, options);
-  chatLog.appendChild(message);
-
-  if (!fullAnswer) {
-    textNode.innerHTML = renderMarkdown(fullAnswer);
-    alignAssistantMessage(message);
-    return;
-  }
-
-  const prefersReducedMotion = Boolean(
-    window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-  if (prefersReducedMotion) {
-    textNode.innerHTML = renderMarkdown(fullAnswer);
-    alignAssistantMessage(message);
-    return;
-  }
-
-  const targetChunkSize = calculateStreamChunkSize(fullAnswer.length);
-  const chunks = splitAnswerForStreaming(fullAnswer, targetChunkSize);
-  if (!chunks.length) {
-    textNode.innerHTML = renderMarkdown(fullAnswer);
-    alignAssistantMessage(message);
-    return;
-  }
-
-  const estimatedTotalMs = Math.round(fullAnswer.length * 1.7);
-  const totalMs = Math.max(
-    STREAM_RENDER_MIN_TOTAL_MS,
-    Math.min(STREAM_RENDER_MAX_TOTAL_MS, estimatedTotalMs),
-  );
-  const tickMs = Math.max(8, Math.round(totalMs / chunks.length));
-
-  let partialAnswer = "";
-  for (let index = 0; index < chunks.length; index += 1) {
-    partialAnswer += chunks[index];
-    textNode.innerHTML = renderMarkdown(partialAnswer);
-    chatLog.scrollTop = chatLog.scrollHeight;
-
-    if (index < chunks.length - 1) {
-      await sleep(tickMs);
-    }
-  }
-
-  alignAssistantMessage(message);
-}
-
 function createLiveAssistantStream(metaText, options = {}) {
-  const { message, textNode } = createMessageElements("assistant", metaText, options);
+  const { message, textNode } = createMessageElements("assistant", "", options);
   chatLog.appendChild(message);
 
   let answerText = "";
   let finalized = false;
+  let metaNode = null;
+
+  function ensureMetaNode() {
+    if (metaNode) {
+      return metaNode;
+    }
+    metaNode = document.createElement("div");
+    metaNode.className = "meta";
+    if (options.metaType === "routing") {
+      metaNode.classList.add("routing-meta");
+    }
+    message.appendChild(metaNode);
+    return metaNode;
+  }
+
+  function setMeta(nextMetaText) {
+    const normalized = String(nextMetaText || "").trim();
+    if (!normalized) {
+      if (metaNode) {
+        metaNode.remove();
+        metaNode = null;
+      }
+      return;
+    }
+    ensureMetaNode().textContent = normalized;
+  }
+
+  function renderTypingDots() {
+    if (finalized || answerText) {
+      return;
+    }
+    textNode.innerHTML = "";
+    const dots = document.createElement("span");
+    dots.className = "typing-dots";
+    dots.setAttribute("aria-hidden", "true");
+    for (let index = 0; index < 3; index += 1) {
+      const dot = document.createElement("span");
+      dot.className = "typing-dot";
+      dots.appendChild(dot);
+    }
+    textNode.appendChild(dots);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
+  setMeta(metaText);
+  renderTypingDots();
 
   return {
     append(deltaText) {
       if (finalized) {
         return;
       }
-      answerText += String(deltaText || "");
+      const nextChunk = String(deltaText || "");
+      if (!nextChunk) {
+        return;
+      }
+      answerText += nextChunk;
       textNode.innerHTML = renderMarkdown(answerText);
       chatLog.scrollTop = chatLog.scrollHeight;
     },
@@ -683,43 +644,15 @@ function createLiveAssistantStream(metaText, options = {}) {
       alignAssistantMessage(message);
       return answerText;
     },
+    setMeta,
     getText() {
       return answerText;
     },
+    remove() {
+      message.remove();
+      finalized = true;
+    },
   };
-}
-
-function showTypingIndicator() {
-  hideTypingIndicator();
-
-  const message = document.createElement("article");
-  message.className = "message system typing-indicator";
-
-  const content = document.createElement("div");
-  content.className = "content";
-
-  const dots = document.createElement("span");
-  dots.className = "typing-dots";
-  dots.setAttribute("aria-hidden", "true");
-  for (let index = 0; index < 3; index += 1) {
-    const dot = document.createElement("span");
-    dot.className = "typing-dot";
-    dots.appendChild(dot);
-  }
-
-  content.appendChild(dots);
-  message.appendChild(content);
-  chatLog.appendChild(message);
-  chatLog.scrollTop = chatLog.scrollHeight;
-  typingIndicatorMessage = message;
-}
-
-function hideTypingIndicator() {
-  if (!typingIndicatorMessage) {
-    return;
-  }
-  typingIndicatorMessage.remove();
-  typingIndicatorMessage = null;
 }
 
 function submitComposerForm() {
@@ -1316,19 +1249,17 @@ composer.addEventListener("submit", async (event) => {
   setProcessingBackground(true);
   addMessage("user", query);
   queryInput.value = "";
-  showTypingIndicator();
+  const liveAssistant = createLiveAssistantStream("", { metaType: "routing" });
 
   try {
     let routeDetails = null;
     let routeMessageRendered = false;
-    let liveAssistant = null;
     let streamRoute = null;
     let streamSources = [];
     let streamAnswer = "";
 
     const orchestratorResponse = await requestOrchestrator(query, selectedSiteFilter, {
       onRoute(payload) {
-        hideTypingIndicator();
         const routePayload =
           payload && typeof payload === "object" && payload.route && typeof payload.route === "object"
             ? payload.route
@@ -1339,16 +1270,9 @@ composer.addEventListener("submit", async (event) => {
           renderRouteMessage(routeDetails, selectedSiteFilter);
           routeMessageRendered = true;
         }
-        if (!liveAssistant) {
-          liveAssistant = createLiveAssistantStream(routeDetails.answerMeta, { metaType: "routing" });
-        }
+        liveAssistant.setMeta(routeDetails.answerMeta);
       },
       onDelta(deltaText) {
-        hideTypingIndicator();
-        if (!liveAssistant) {
-          const metaText = routeDetails ? routeDetails.answerMeta : "";
-          liveAssistant = createLiveAssistantStream(metaText, { metaType: "routing" });
-        }
         liveAssistant.append(deltaText);
       },
       onDone(payload) {
@@ -1368,7 +1292,6 @@ composer.addEventListener("submit", async (event) => {
     });
 
     if (orchestratorResponse.mode === "stream") {
-      hideTypingIndicator();
       if (!routeDetails && streamRoute) {
         routeDetails = describeRoute(streamRoute);
       }
@@ -1376,9 +1299,8 @@ composer.addEventListener("submit", async (event) => {
         renderRouteMessage(routeDetails, selectedSiteFilter);
         routeMessageRendered = true;
       }
-      if (!liveAssistant) {
-        const metaText = routeDetails ? routeDetails.answerMeta : "";
-        liveAssistant = createLiveAssistantStream(metaText, { metaType: "routing" });
+      if (routeDetails) {
+        liveAssistant.setMeta(routeDetails.answerMeta);
       }
 
       const streamedText = String(streamAnswer || liveAssistant.getText() || "").trim();
@@ -1419,7 +1341,8 @@ composer.addEventListener("submit", async (event) => {
     const shouldShowSources = !isInsufficientInformationAnswer(answer);
     const sourcesMarkdown = shouldShowSources ? buildSourcesMarkdown(sources) : "";
 
-    await addStreamingAssistantMessage(answer, routeDetails.answerMeta, { metaType: "routing" });
+    liveAssistant.setMeta(routeDetails.answerMeta);
+    liveAssistant.finalize(answer);
     if (sourcesMarkdown) {
       addMessage("system", sourcesMarkdown.trim(), undefined, {
         renderMarkdown: true,
@@ -1434,14 +1357,15 @@ composer.addEventListener("submit", async (event) => {
       site_filter: selectedSiteFilter === SITE_FILTER_ALL ? "all" : selectedSiteFilter,
     });
   } catch (error) {
-    hideTypingIndicator();
+    if (!liveAssistant.getText()) {
+      liveAssistant.remove();
+    }
     addMessage("system", String(error.message || error), "orchestrator");
     trackEvent("query_failed", {
       error_type: classifyErrorType(error),
       site_filter: selectedSiteFilter === SITE_FILTER_ALL ? "all" : selectedSiteFilter,
     });
   } finally {
-    hideTypingIndicator();
     setProcessingBackground(false);
     setSendButtonLoading(false);
     sendButton.disabled = false;
