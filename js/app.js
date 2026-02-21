@@ -60,6 +60,11 @@ const STARTER_MESSAGE_DELAY_MS = 500;
 const STARTER_FOLLOWUP_MESSAGE_DELAY_MS = 2000;
 const STARTER_QUERY_DISPLAY_COUNT = 3;
 const INSUFFICIENT_INFORMATION_PHRASE = "i do not have enough information";
+const STREAM_RENDER_MIN_CHARS = 28;
+const STREAM_RENDER_MAX_CHARS = 140;
+const STREAM_RENDER_MAX_TICKS = 70;
+const STREAM_RENDER_MIN_TOTAL_MS = 260;
+const STREAM_RENDER_MAX_TOTAL_MS = 1800;
 const STARTER_QUERIES = [
   "How do I file a small claims case?",
   "What happens after I file a lawsuit?",
@@ -515,7 +520,19 @@ function targetTopForMessage(message, topOffset) {
   return Math.min(maxTarget, Math.max(0, rawTarget));
 }
 
-function addMessage(role, text, metaText, options = {}) {
+function alignAssistantMessage(message) {
+  // Align the beginning of the answer a bit below the top edge.
+  const topOffset = 28;
+  requestAnimationFrame(() => {
+    const targetTop = targetTopForMessage(message, topOffset);
+    smoothScrollChatTo(targetTop, 1100, () => {
+      // Correct any tiny post-layout drift so the top aligns exactly.
+      chatLog.scrollTop = targetTopForMessage(message, topOffset);
+    });
+  });
+}
+
+function createMessageElements(role, metaText, options = {}) {
   const message = document.createElement("article");
   message.className = `message ${role}`;
   if (options.messageType === "routing-system") {
@@ -524,11 +541,6 @@ function addMessage(role, text, metaText, options = {}) {
 
   const textNode = document.createElement("div");
   textNode.className = "content";
-  if (role === "assistant" || options.renderMarkdown === true) {
-    textNode.innerHTML = renderMarkdown(text);
-  } else {
-    textNode.textContent = text;
-  }
   message.appendChild(textNode);
 
   if (metaText) {
@@ -541,23 +553,140 @@ function addMessage(role, text, metaText, options = {}) {
     message.appendChild(meta);
   }
 
+  return { message, textNode };
+}
+
+function addMessage(role, text, metaText, options = {}) {
+  const { message, textNode } = createMessageElements(role, metaText, options);
+  if (role === "assistant" || options.renderMarkdown === true) {
+    textNode.innerHTML = renderMarkdown(text);
+  } else {
+    textNode.textContent = text;
+  }
+
   chatLog.appendChild(message);
   if (role === "assistant") {
-    // Align the beginning of the answer a bit below the top edge.
-    const topOffset = 28;
-    requestAnimationFrame(() => {
-      const targetTop = targetTopForMessage(message, topOffset);
-      smoothScrollChatTo(targetTop, 1100, () => {
-        // Correct any tiny post-layout drift so the top aligns exactly.
-        chatLog.scrollTop = targetTopForMessage(message, topOffset);
-      });
-    });
+    alignAssistantMessage(message);
     return;
   }
   if (options.disableAutoScroll === true) {
     return;
   }
   chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function splitAnswerForStreaming(answerText, targetChunkSize) {
+  const segments = String(answerText || "").match(/\S+\s*/g);
+  if (!Array.isArray(segments) || !segments.length) {
+    const raw = String(answerText || "");
+    return raw ? [raw] : [];
+  }
+
+  const chunks = [];
+  let currentChunk = "";
+  for (const segment of segments) {
+    if (currentChunk.length + segment.length > targetChunkSize && currentChunk) {
+      chunks.push(currentChunk);
+      currentChunk = "";
+    }
+    currentChunk += segment;
+  }
+  if (currentChunk) {
+    chunks.push(currentChunk);
+  }
+  return chunks;
+}
+
+function calculateStreamChunkSize(answerLength) {
+  const safeLength = Math.max(1, Math.floor(Number(answerLength) || 0));
+  const estimated = Math.ceil(safeLength / STREAM_RENDER_MAX_TICKS);
+  return Math.min(STREAM_RENDER_MAX_CHARS, Math.max(STREAM_RENDER_MIN_CHARS, estimated));
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+async function addStreamingAssistantMessage(answer, metaText, options = {}) {
+  const fullAnswer = String(answer || "");
+  const { message, textNode } = createMessageElements("assistant", metaText, options);
+  chatLog.appendChild(message);
+
+  if (!fullAnswer) {
+    textNode.innerHTML = renderMarkdown(fullAnswer);
+    alignAssistantMessage(message);
+    return;
+  }
+
+  const prefersReducedMotion = Boolean(
+    window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+  if (prefersReducedMotion) {
+    textNode.innerHTML = renderMarkdown(fullAnswer);
+    alignAssistantMessage(message);
+    return;
+  }
+
+  const targetChunkSize = calculateStreamChunkSize(fullAnswer.length);
+  const chunks = splitAnswerForStreaming(fullAnswer, targetChunkSize);
+  if (!chunks.length) {
+    textNode.innerHTML = renderMarkdown(fullAnswer);
+    alignAssistantMessage(message);
+    return;
+  }
+
+  const estimatedTotalMs = Math.round(fullAnswer.length * 1.7);
+  const totalMs = Math.max(
+    STREAM_RENDER_MIN_TOTAL_MS,
+    Math.min(STREAM_RENDER_MAX_TOTAL_MS, estimatedTotalMs),
+  );
+  const tickMs = Math.max(8, Math.round(totalMs / chunks.length));
+
+  let partialAnswer = "";
+  for (let index = 0; index < chunks.length; index += 1) {
+    partialAnswer += chunks[index];
+    textNode.innerHTML = renderMarkdown(partialAnswer);
+    chatLog.scrollTop = chatLog.scrollHeight;
+
+    if (index < chunks.length - 1) {
+      await sleep(tickMs);
+    }
+  }
+
+  alignAssistantMessage(message);
+}
+
+function createLiveAssistantStream(metaText, options = {}) {
+  const { message, textNode } = createMessageElements("assistant", metaText, options);
+  chatLog.appendChild(message);
+
+  let answerText = "";
+  let finalized = false;
+
+  return {
+    append(deltaText) {
+      if (finalized) {
+        return;
+      }
+      answerText += String(deltaText || "");
+      textNode.innerHTML = renderMarkdown(answerText);
+      chatLog.scrollTop = chatLog.scrollHeight;
+    },
+    finalize(finalAnswer) {
+      if (typeof finalAnswer === "string" && finalAnswer.length) {
+        answerText = finalAnswer;
+      }
+      textNode.innerHTML = renderMarkdown(answerText);
+      finalized = true;
+      alignAssistantMessage(message);
+      return answerText;
+    },
+    getText() {
+      return answerText;
+    },
+  };
 }
 
 function showTypingIndicator() {
@@ -855,6 +984,138 @@ function parseJsonResponse(text) {
   }
 }
 
+function tryParseJsonResponse(text) {
+  try {
+    return parseJsonResponse(text);
+  } catch (_error) {
+    return {};
+  }
+}
+
+function parseSseBlock(blockText) {
+  const lines = String(blockText || "").split("\n");
+  let eventType = "message";
+  const dataLines = [];
+
+  for (const rawLine of lines) {
+    const line = String(rawLine || "");
+    if (!line || line.startsWith(":")) {
+      continue;
+    }
+    if (line.startsWith("event:")) {
+      eventType = line.slice("event:".length).trim() || "message";
+      continue;
+    }
+    if (line.startsWith("data:")) {
+      dataLines.push(line.slice("data:".length).trimStart());
+    }
+  }
+
+  return {
+    eventType,
+    data: dataLines.join("\n"),
+  };
+}
+
+function parseSseData(dataText) {
+  const raw = String(dataText || "").trim();
+  if (!raw) {
+    return {};
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (_error) {
+    return { text: raw };
+  }
+}
+
+async function consumeOrchestratorEventStream(stream, handlers = {}) {
+  if (!stream || typeof stream.getReader !== "function") {
+    return {};
+  }
+
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let donePayload = null;
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+
+    let boundaryIndex = buffer.indexOf("\n\n");
+    while (boundaryIndex !== -1) {
+      const block = buffer.slice(0, boundaryIndex);
+      buffer = buffer.slice(boundaryIndex + 2);
+      boundaryIndex = buffer.indexOf("\n\n");
+
+      if (!block.trim()) {
+        continue;
+      }
+      const parsedEvent = parseSseBlock(block);
+      const payload = parseSseData(parsedEvent.data);
+
+      if (parsedEvent.eventType === "route") {
+        if (typeof handlers.onRoute === "function") {
+          handlers.onRoute(payload);
+        }
+        continue;
+      }
+      if (parsedEvent.eventType === "delta") {
+        const deltaText = String(
+          payload.text || payload.delta || payload.content || payload.chunk || ""
+        );
+        if (deltaText && typeof handlers.onDelta === "function") {
+          handlers.onDelta(deltaText);
+        }
+        continue;
+      }
+      if (parsedEvent.eventType === "done") {
+        donePayload = payload;
+        if (typeof handlers.onDone === "function") {
+          handlers.onDone(payload);
+        }
+        continue;
+      }
+      if (parsedEvent.eventType === "error") {
+        const errorMessage = String(payload.error || payload.message || "Streaming request failed.");
+        if (typeof handlers.onError === "function") {
+          handlers.onError(errorMessage, payload);
+        }
+        throw new Error(errorMessage);
+      }
+    }
+  }
+
+  const trailing = buffer.trim();
+  if (trailing) {
+    const parsedEvent = parseSseBlock(trailing);
+    const payload = parseSseData(parsedEvent.data);
+    if (parsedEvent.eventType === "done") {
+      donePayload = payload;
+      if (typeof handlers.onDone === "function") {
+        handlers.onDone(payload);
+      }
+    } else if (parsedEvent.eventType === "delta") {
+      const deltaText = String(payload.text || payload.delta || payload.content || payload.chunk || "");
+      if (deltaText && typeof handlers.onDelta === "function") {
+        handlers.onDelta(deltaText);
+      }
+    } else if (parsedEvent.eventType === "error") {
+      const errorMessage = String(payload.error || payload.message || "Streaming request failed.");
+      if (typeof handlers.onError === "function") {
+        handlers.onError(errorMessage, payload);
+      }
+      throw new Error(errorMessage);
+    }
+  }
+
+  return donePayload || {};
+}
+
 function isHttpUrl(value) {
   if (typeof value !== "string" || !value.trim()) {
     return false;
@@ -930,7 +1191,56 @@ function getRequestSiteFilter(siteFilterValue) {
   return selectedSite;
 }
 
-async function callOrchestrator(query, siteFilter) {
+function describeRoute(route) {
+  const normalizedRoute = route && typeof route === "object" ? route : {};
+  const routedIndices = Array.isArray(normalizedRoute.indices)
+    ? normalizedRoute.indices.map((value) => String(value || "").trim()).filter(Boolean)
+    : [];
+  const selectedIndex = routedIndices[0] || String(normalizedRoute.index || "").trim();
+
+  let answerMeta = "";
+  if (routedIndices.length > 1) {
+    answerMeta = routedIndices.join(" -> ");
+  } else if (selectedIndex) {
+    answerMeta = selectedIndex;
+  }
+
+  const routeLabel = routedIndices.length > 1
+    ? `Auto-selected sequence: ${routedIndices.join(" -> ")}`
+    : selectedIndex
+      ? `Auto-selected index '${selectedIndex}'.`
+      : "Routing completed.";
+
+  return {
+    route: normalizedRoute,
+    selectedIndex,
+    routedIndices,
+    answerMeta,
+    routeLabel,
+    routeMeta: String(normalizedRoute.reason || "").trim() || undefined,
+  };
+}
+
+function renderRouteMessage(routeDetails, selectedSiteFilter) {
+  if (!routeDetails || typeof routeDetails !== "object") {
+    return;
+  }
+  if (!routeDetails.selectedIndex && !routeDetails.routeMeta && !routeDetails.routedIndices.length) {
+    return;
+  }
+
+  addMessage("system", routeDetails.routeLabel, routeDetails.routeMeta, {
+    metaType: "routing",
+    messageType: "routing-system",
+  });
+  trackEvent("route_selected", {
+    selected_index: routeDetails.selectedIndex || "none",
+    routed_count: routeDetails.routedIndices.length || (routeDetails.selectedIndex ? 1 : 0),
+    site_filter: selectedSiteFilter === SITE_FILTER_ALL ? "all" : selectedSiteFilter,
+  });
+}
+
+async function requestOrchestrator(query, siteFilter, handlers = {}) {
   if (!orchestratorUrl) {
     throw new Error("Missing orchestrator function URL. Run launch to update app-config.js.");
   }
@@ -947,17 +1257,26 @@ async function callOrchestrator(query, siteFilter) {
     body: JSON.stringify(requestPayload),
   });
 
+  if (!response.ok) {
+    const text = await response.text();
+    const payload = tryParseJsonResponse(text);
+    const normalized = parseLambdaPayload(payload);
+    throw new Error(normalized.error || normalized.Message || `Request failed (${response.status}).`);
+  }
+
+  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+  if (contentType.includes("text/event-stream") && response.body) {
+    const streamResult = await consumeOrchestratorEventStream(response.body, handlers);
+    return { mode: "stream", result: streamResult };
+  }
+
   const text = await response.text();
   const payload = parseJsonResponse(text);
   const normalized = parseLambdaPayload(payload);
-
-  if (!response.ok) {
-    throw new Error(normalized.error || normalized.Message || `Request failed (${response.status}).`);
-  }
   if (!normalized || typeof normalized !== "object") {
     throw new Error("Unexpected orchestrator response payload.");
   }
-  return normalized;
+  return { mode: "json", result: normalized };
 }
 
 // Enter sends the request; Shift+Enter inserts a newline.
@@ -1000,43 +1319,107 @@ composer.addEventListener("submit", async (event) => {
   showTypingIndicator();
 
   try {
-    const result = await callOrchestrator(query, selectedSiteFilter);
-    hideTypingIndicator();
-    const route = result.route && typeof result.route === "object" ? result.route : {};
+    let routeDetails = null;
+    let routeMessageRendered = false;
+    let liveAssistant = null;
+    let streamRoute = null;
+    let streamSources = [];
+    let streamAnswer = "";
 
-    const routedIndices = Array.isArray(route.indices)
-      ? route.indices.map((value) => String(value || "").trim()).filter(Boolean)
-      : [];
-    const selectedIndex = routedIndices[0] || String(route.index || "").trim();
+    const orchestratorResponse = await requestOrchestrator(query, selectedSiteFilter, {
+      onRoute(payload) {
+        hideTypingIndicator();
+        const routePayload =
+          payload && typeof payload === "object" && payload.route && typeof payload.route === "object"
+            ? payload.route
+            : payload;
+        routeDetails = describeRoute(routePayload);
+        streamRoute = routeDetails.route;
+        if (!routeMessageRendered) {
+          renderRouteMessage(routeDetails, selectedSiteFilter);
+          routeMessageRendered = true;
+        }
+        if (!liveAssistant) {
+          liveAssistant = createLiveAssistantStream(routeDetails.answerMeta, { metaType: "routing" });
+        }
+      },
+      onDelta(deltaText) {
+        hideTypingIndicator();
+        if (!liveAssistant) {
+          const metaText = routeDetails ? routeDetails.answerMeta : "";
+          liveAssistant = createLiveAssistantStream(metaText, { metaType: "routing" });
+        }
+        liveAssistant.append(deltaText);
+      },
+      onDone(payload) {
+        if (!payload || typeof payload !== "object") {
+          return;
+        }
+        if (typeof payload.answer === "string") {
+          streamAnswer = payload.answer;
+        }
+        if (Array.isArray(payload.sources)) {
+          streamSources = payload.sources;
+        }
+        if (payload.route && typeof payload.route === "object") {
+          streamRoute = payload.route;
+        }
+      },
+    });
 
-    if (selectedIndex || route.reason || routedIndices.length) {
-      const routeLabel = routedIndices.length > 1
-        ? `Auto-selected sequence: ${routedIndices.join(" -> ")}`
-        : selectedIndex
-          ? `Auto-selected index '${selectedIndex}'.`
-          : "Routing completed.";
-      const routeMeta = String(route.reason || "").trim() || undefined;
-      addMessage("system", routeLabel, routeMeta, { metaType: "routing", messageType: "routing-system" });
-      trackEvent("route_selected", {
+    if (orchestratorResponse.mode === "stream") {
+      hideTypingIndicator();
+      if (!routeDetails && streamRoute) {
+        routeDetails = describeRoute(streamRoute);
+      }
+      if (routeDetails && !routeMessageRendered) {
+        renderRouteMessage(routeDetails, selectedSiteFilter);
+        routeMessageRendered = true;
+      }
+      if (!liveAssistant) {
+        const metaText = routeDetails ? routeDetails.answerMeta : "";
+        liveAssistant = createLiveAssistantStream(metaText, { metaType: "routing" });
+      }
+
+      const streamedText = String(streamAnswer || liveAssistant.getText() || "").trim();
+      const answer = streamedText || "(no answer field returned)";
+      liveAssistant.finalize(answer);
+
+      const sources = Array.isArray(streamSources) ? streamSources : [];
+      const shouldShowSources = !isInsufficientInformationAnswer(answer);
+      const sourcesMarkdown = shouldShowSources ? buildSourcesMarkdown(sources) : "";
+      if (sourcesMarkdown) {
+        addMessage("system", sourcesMarkdown.trim(), undefined, {
+          renderMarkdown: true,
+          disableAutoScroll: true,
+        });
+      }
+
+      const selectedIndex = routeDetails ? routeDetails.selectedIndex : "";
+      const routedCount = routeDetails
+        ? routeDetails.routedIndices.length || (routeDetails.selectedIndex ? 1 : 0)
+        : 0;
+      trackEvent("query_succeeded", {
         selected_index: selectedIndex || "none",
-        routed_count: routedIndices.length || (selectedIndex ? 1 : 0),
+        routed_count: routedCount,
+        source_count: sources.length,
+        answer_length: answer.length,
         site_filter: selectedSiteFilter === SITE_FILTER_ALL ? "all" : selectedSiteFilter,
       });
+      return;
     }
+
+    const result = orchestratorResponse.result;
+    const route = result.route && typeof result.route === "object" ? result.route : {};
+    routeDetails = describeRoute(route);
+    renderRouteMessage(routeDetails, selectedSiteFilter);
 
     const answer = String(result.answer || "").trim() || "(no answer field returned)";
     const sources = Array.isArray(result.sources) ? result.sources : [];
     const shouldShowSources = !isInsufficientInformationAnswer(answer);
     const sourcesMarkdown = shouldShowSources ? buildSourcesMarkdown(sources) : "";
 
-    let meta = "";
-    if (routedIndices.length > 1) {
-      meta = routedIndices.join(" -> ");
-    } else if (selectedIndex) {
-      meta = selectedIndex;
-    }
-
-    addMessage("assistant", answer, meta, { metaType: "routing" });
+    await addStreamingAssistantMessage(answer, routeDetails.answerMeta, { metaType: "routing" });
     if (sourcesMarkdown) {
       addMessage("system", sourcesMarkdown.trim(), undefined, {
         renderMarkdown: true,
@@ -1044,8 +1427,8 @@ composer.addEventListener("submit", async (event) => {
       });
     }
     trackEvent("query_succeeded", {
-      selected_index: selectedIndex || "none",
-      routed_count: routedIndices.length || (selectedIndex ? 1 : 0),
+      selected_index: routeDetails.selectedIndex || "none",
+      routed_count: routeDetails.routedIndices.length || (routeDetails.selectedIndex ? 1 : 0),
       source_count: sources.length,
       answer_length: answer.length,
       site_filter: selectedSiteFilter === SITE_FILTER_ALL ? "all" : selectedSiteFilter,

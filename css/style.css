@@ -166,11 +166,6 @@ a.brand-text:active {
   border-color: var(--message-system-border);
 }
 
-.message.system.typing-indicator {
-  width: auto;
-  justify-self: start;
-}
-
 .message.system.typing-indicator .content {
   display: inline-flex;
   align-items: center;
