@@ -27,9 +27,11 @@ const toggleRoutingMeta = document.getElementById("toggleRoutingMeta");
 const themeSelect = document.getElementById("themeSelect");
 const siteSelect = document.getElementById("siteSelect");
 const brandLogo = document.querySelector(".brand-logo");
+const brandText = document.querySelector(".brand-text");
 const rootElement = document.documentElement;
 const pageBody = document.body;
 let chatScrollRafId = null;
+let brandLogoSyncRafId = null;
 let userHasSubmittedQuery = false;
 let starterMessageTimeoutId = null;
 let starterFollowupTimeoutId = null;
@@ -77,6 +79,39 @@ const STARTER_QUERIES = [
 
 if (footerYear) {
   footerYear.textContent = String(new Date().getFullYear());
+}
+
+function syncBrandLogoHeight() {
+  if (!brandLogo || !brandText) {
+    return;
+  }
+  const measuredHeight = brandText.getBoundingClientRect().height;
+  const targetHeight = Math.max(1, Math.round(measuredHeight));
+  brandLogo.style.height = `${targetHeight}px`;
+}
+
+function requestBrandLogoHeightSync() {
+  if (!brandLogo || !brandText) {
+    return;
+  }
+  if (brandLogoSyncRafId !== null) {
+    window.cancelAnimationFrame(brandLogoSyncRafId);
+  }
+  brandLogoSyncRafId = window.requestAnimationFrame(() => {
+    brandLogoSyncRafId = null;
+    syncBrandLogoHeight();
+  });
+}
+
+if (brandLogo && brandText) {
+  requestBrandLogoHeightSync();
+  window.addEventListener("resize", requestBrandLogoHeightSync);
+  brandLogo.addEventListener("load", requestBrandLogoHeightSync);
+  if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === "function") {
+    document.fonts.ready.then(() => {
+      requestBrandLogoHeightSync();
+    });
+  }
 }
 
 function extractSiteFilters(routeItems) {
@@ -797,6 +832,7 @@ function setTheme(themeName, options = {}) {
       brandLogo.setAttribute("src", nextLogoSrc);
     }
   }
+  requestBrandLogoHeightSync();
 
   if (shouldPersist) {
     try {

@@ -92,6 +92,15 @@ body.is-processing .processing-bg { animation-play-state: running; }
   gap: 0.05rem;
 }
 
+.header-kicker {
+  margin: 0;
+  color: var(--base01);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 a.brand-text,
 a.brand-text:visited,
 a.brand-text:hover,
@@ -101,9 +110,23 @@ a.brand-text:active {
   border: 0;
 }
 
+.brand-logo-link,
+.brand-logo-link:visited,
+.brand-logo-link:hover,
+.brand-logo-link:active {
+  color: inherit;
+  text-decoration: none;
+  border: 0;
+  display: block;
+  flex: 0 0 auto;
+}
+
 .brand-logo {
-  width: 44px;
+  width: auto;
   height: 44px;
+  align-self: center;
+  flex: 0 0 auto;
+  display: block;
   border-radius: 0;
   background: transparent;
   object-fit: cover;
