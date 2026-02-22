@@ -89,6 +89,23 @@
           </svg>
         </button>
         <div id="settingsPanel" class="settings-panel" hidden>
+          <label class="settings-option settings-control" for="siteSelect">
+            <span>Site</span>
+            <select id="siteSelect" name="site">
+              <option value="__all__">All Sites</option>
+            </select>
+          </label>
+          <label class="settings-option settings-control" for="personaSelect">
+            <span>Persona</span>
+            <select id="personaSelect" name="persona">
+              <option value="default">Default</option>
+              <option value="saul-goodman">Saul Goodman</option>
+              <option value="judge-judy">Judge Judy</option>
+              <option value="ally-mcbeal">Ally McBeal</option>
+              <option value="vincent-gambini">Vincent Gambini</option>
+              <option value="jeff-winger">Jeff Winger</option>
+            </select>
+          </label>
           <label class="settings-option settings-control" for="themeSelect">
             <span>Theme</span>
             <select id="themeSelect" name="theme">
@@ -97,12 +114,6 @@
               <option value="gruvbox-dark">Gruvbox Dark</option>
               <option value="courtyard">Courtyard</option>
               <option value="grayscale">Grayscale</option>
-            </select>
-          </label>
-          <label class="settings-option settings-control" for="siteSelect">
-            <span>Site</span>
-            <select id="siteSelect" name="site">
-              <option value="__all__">All Sites</option>
             </select>
           </label>
         </div>

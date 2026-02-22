@@ -28,6 +28,7 @@ const settingsPanel = document.getElementById("settingsPanel");
 const toggleRoutingMeta = document.getElementById("toggleRoutingMeta");
 const themeSelect = document.getElementById("themeSelect");
 const siteSelect = document.getElementById("siteSelect");
+const personaSelect = document.getElementById("personaSelect");
 const brandLogo = document.querySelector(".brand-logo");
 const brandText = document.querySelector(".brand-text");
 const brandTitle = document.querySelector(".brand-text h1");
@@ -44,11 +45,18 @@ const ROUTING_META_HIDDEN_CLASS = "hide-routing-meta";
 const ROUTING_META_STORAGE_KEY = "calquery-routing-meta-visible";
 const THEME_STORAGE_KEY = "calquery-theme";
 const SITE_FILTER_STORAGE_KEY = "calquery-site-filter";
+const PERSONA_STORAGE_KEY = "calquery-persona";
 const THEME_DEFAULT = "default";
 const THEME_KANAGAWA = "kanagawa";
 const THEME_GRUVBOX_DARK = "gruvbox-dark";
 const THEME_COURTYARD = "courtyard";
 const THEME_GRAYSCALE = "grayscale";
+const PERSONA_DEFAULT = "default";
+const PERSONA_SAUL_GOODMAN = "saul-goodman";
+const PERSONA_JUDGE_JUDY = "judge-judy";
+const PERSONA_ALLY_MCBEAL = "ally-mcbeal";
+const PERSONA_VINCENT_GAMBINI = "vincent-gambini";
+const PERSONA_JEFF_WINGER = "jeff-winger";
 const SITE_FILTER_ALL = "__all__";
 const SITE_FILTER_DEFAULT = "self-help";
 const BRAND_TITLE_BASE = "CalQuery";
@@ -81,6 +89,21 @@ const SUPPORTED_THEMES = new Set([
   THEME_COURTYARD,
   THEME_GRAYSCALE,
 ]);
+const SUPPORTED_PERSONAS = new Set([
+  PERSONA_DEFAULT,
+  PERSONA_SAUL_GOODMAN,
+  PERSONA_JUDGE_JUDY,
+  PERSONA_ALLY_MCBEAL,
+  PERSONA_VINCENT_GAMBINI,
+  PERSONA_JEFF_WINGER,
+]);
+const PERSONA_ANSWER_PREFIX = {
+  [PERSONA_SAUL_GOODMAN]: "All right, here is the case, straight from the record:",
+  [PERSONA_JUDGE_JUDY]: "Here is the answer, plain and simple:",
+  [PERSONA_ALLY_MCBEAL]: "Here is what the record supports:",
+  [PERSONA_VINCENT_GAMBINI]: "Here is what we can prove from the record:",
+  [PERSONA_JEFF_WINGER]: "Here is the strongest answer the record supports:",
+};
 const AVAILABLE_SITE_FILTERS = extractSiteFilters(routes);
 const STARTER_QUERY_MESSAGE_DELAY_MS = 2000;
 const STARTER_MESSAGE_DELAY_MS = 500;
@@ -350,6 +373,73 @@ function syncSiteFilterQueryString(siteValue) {
 
 function getSelectedSiteFilter() {
   return normalizeSiteFilterValue(siteSelect ? siteSelect.value : SITE_FILTER_ALL);
+}
+
+function normalizePersonaName(personaName) {
+  const normalized = String(personaName || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!normalized) {
+    return PERSONA_DEFAULT;
+  }
+  if (SUPPORTED_PERSONAS.has(normalized)) {
+    return normalized;
+  }
+  return PERSONA_DEFAULT;
+}
+
+function setPersona(personaName, options = {}) {
+  const selectedPersona = normalizePersonaName(personaName);
+  const shouldPersist = options.persist !== false;
+
+  if (personaSelect && personaSelect.value !== selectedPersona) {
+    personaSelect.value = selectedPersona;
+  }
+
+  if (shouldPersist) {
+    try {
+      window.localStorage.setItem(PERSONA_STORAGE_KEY, selectedPersona);
+    } catch (error) {
+      // Ignore storage failures in private mode or restricted environments.
+    }
+  }
+
+  return selectedPersona;
+}
+
+function loadPersonaPreference() {
+  let saved = null;
+  try {
+    saved = window.localStorage.getItem(PERSONA_STORAGE_KEY);
+  } catch (error) {
+    saved = null;
+  }
+  setPersona(saved, { persist: false });
+}
+
+function getSelectedPersona() {
+  return normalizePersonaName(personaSelect ? personaSelect.value : PERSONA_DEFAULT);
+}
+
+function applyPersonaAnswerVoice(answerText, personaName) {
+  const normalizedAnswer = String(answerText || "").trim();
+  if (!normalizedAnswer) {
+    return normalizedAnswer;
+  }
+  const selectedPersona = normalizePersonaName(personaName);
+  if (selectedPersona === PERSONA_DEFAULT) {
+    return normalizedAnswer;
+  }
+  const personaPrefix = PERSONA_ANSWER_PREFIX[selectedPersona];
+  if (!personaPrefix) {
+    return normalizedAnswer;
+  }
+  if (normalizedAnswer.startsWith(personaPrefix)) {
+    return normalizedAnswer;
+  }
+  return `${personaPrefix}\n\n${normalizedAnswer}`;
 }
 
 function toAnalyticsSiteFilter(siteValue) {
@@ -1143,6 +1233,7 @@ function loadThemePreference() {
 
 loadThemePreference();
 loadRoutingMetaPreference();
+loadPersonaPreference();
 populateSiteFilterOptions();
 loadSiteFilterPreference();
 const queryStringSiteFilter = readSiteFilterFromQueryString();
@@ -1262,6 +1353,13 @@ if (themeSelect) {
   themeSelect.addEventListener("change", (event) => {
     const selectedTheme = setTheme(event.target.value);
     trackEvent("theme_toggled", { theme: selectedTheme });
+  });
+}
+
+if (personaSelect) {
+  personaSelect.addEventListener("change", (event) => {
+    const selectedPersona = setPersona(event.target.value);
+    trackEvent("persona_toggled", { persona: selectedPersona });
   });
 }
 
@@ -1593,16 +1691,18 @@ function renderRouteMessage(routeDetails, selectedSiteFilter) {
   });
 }
 
-async function requestOrchestrator(query, siteFilter, handlers = {}) {
+async function requestOrchestrator(query, siteFilter, persona, handlers = {}) {
   if (!orchestratorUrl) {
     throw new Error("Missing orchestrator function URL. Run launch to update app-config.js.");
   }
 
   const requestPayload = { query };
   const selectedSite = getRequestSiteFilter(siteFilter);
+  const selectedPersona = normalizePersonaName(persona);
   if (selectedSite) {
     requestPayload.site = selectedSite;
   }
+  requestPayload.persona = selectedPersona;
 
   const response = await fetch(orchestratorUrl, {
     method: "POST",
@@ -1662,6 +1762,7 @@ composer.addEventListener("submit", async (event) => {
   userHasSubmittedQuery = true;
   cancelPendingStarterMessages();
   const selectedSiteFilter = getSelectedSiteFilter();
+  const selectedPersona = getSelectedPersona();
   const submitTrigger = nextSubmitTrigger || "programmatic";
   nextSubmitTrigger = "send_button";
   const queryStartedAt = performance.now();
@@ -1671,6 +1772,7 @@ composer.addEventListener("submit", async (event) => {
     route_count: routes.length,
     has_orchestrator: orchestratorUrl ? 1 : 0,
     site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
+    persona: selectedPersona,
     submit_trigger: submitTrigger,
   });
 
@@ -1689,7 +1791,7 @@ composer.addEventListener("submit", async (event) => {
     let streamSources = [];
     let streamAnswer = "";
 
-    const orchestratorResponse = await requestOrchestrator(query, selectedSiteFilter, {
+    const orchestratorResponse = await requestOrchestrator(query, selectedSiteFilter, selectedPersona, {
       onRoute(payload) {
         const routePayload =
           payload && typeof payload === "object" && payload.route && typeof payload.route === "object"
@@ -1735,11 +1837,12 @@ composer.addEventListener("submit", async (event) => {
       }
 
       const streamedText = String(streamAnswer || liveAssistant.getText() || "").trim();
-      const answer = streamedText || "(no answer field returned)";
+      const rawAnswer = streamedText || "(no answer field returned)";
+      const answer = applyPersonaAnswerVoice(rawAnswer, selectedPersona);
       liveAssistant.finalize(answer);
 
       const sources = Array.isArray(streamSources) ? streamSources : [];
-      const shouldShowSources = !isInsufficientInformationAnswer(answer);
+      const shouldShowSources = !isInsufficientInformationAnswer(rawAnswer);
       const sourcesMarkdown = shouldShowSources ? buildSourcesMarkdown(sources) : "";
       if (sourcesMarkdown) {
         addMessage("system", sourcesMarkdown.trim(), undefined, {
@@ -1758,6 +1861,7 @@ composer.addEventListener("submit", async (event) => {
         source_count: sources.length,
         answer_length: answer.length,
         site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
+        persona: selectedPersona,
         response_mode: "stream",
         duration_ms: toAnalyticsDurationMs(queryStartedAt),
         submit_trigger: submitTrigger,
@@ -1770,9 +1874,10 @@ composer.addEventListener("submit", async (event) => {
     routeDetails = describeRoute(route);
     renderRouteMessage(routeDetails, selectedSiteFilter);
 
-    const answer = String(result.answer || "").trim() || "(no answer field returned)";
+    const rawAnswer = String(result.answer || "").trim() || "(no answer field returned)";
+    const answer = applyPersonaAnswerVoice(rawAnswer, selectedPersona);
     const sources = Array.isArray(result.sources) ? result.sources : [];
-    const shouldShowSources = !isInsufficientInformationAnswer(answer);
+    const shouldShowSources = !isInsufficientInformationAnswer(rawAnswer);
     const sourcesMarkdown = shouldShowSources ? buildSourcesMarkdown(sources) : "";
 
     liveAssistant.setMeta(routeDetails.answerMeta);
@@ -1789,6 +1894,7 @@ composer.addEventListener("submit", async (event) => {
       source_count: sources.length,
       answer_length: answer.length,
       site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
+      persona: selectedPersona,
       response_mode: "json",
       duration_ms: toAnalyticsDurationMs(queryStartedAt),
       submit_trigger: submitTrigger,
@@ -1801,6 +1907,7 @@ composer.addEventListener("submit", async (event) => {
     trackEvent("query_failed", {
       error_type: classifyErrorType(error),
       site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
+      persona: selectedPersona,
       duration_ms: toAnalyticsDurationMs(queryStartedAt),
       submit_trigger: submitTrigger,
     });
@@ -1852,4 +1959,5 @@ trackEvent("app_loaded", {
   route_count: routes.length,
   has_orchestrator: orchestratorUrl ? 1 : 0,
   site_filter: toAnalyticsSiteFilter(getSelectedSiteFilter()),
+  persona: getSelectedPersona(),
 });
