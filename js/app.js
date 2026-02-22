@@ -52,6 +52,7 @@ const THEME_GRAYSCALE = "grayscale";
 const SITE_FILTER_ALL = "__all__";
 const SITE_FILTER_DEFAULT = "self-help";
 const BRAND_TITLE_BASE = "CalQuery";
+const BRAND_TITLE_SEPARATOR = "→";
 const BRAND_LOGO_DEFAULT_SRC = "./images/bear-logo-soft-192.webp?v=2";
 const BRAND_LOGO_LIGHT_SRC = "./images/bear-logo-light-192.webp?v=2";
 const THEME_STYLESHEET_ID = "themeStylesheet";
@@ -192,19 +193,26 @@ function normalizeSiteKey(siteValue) {
 }
 
 function updateBrandTitle(siteFilterValue) {
+  const siteLabel = siteFilterValue === SITE_FILTER_ALL ? "All Sites" : String(siteFilterValue || "").trim();
+  const formattedSiteLabel = siteLabel || "All Sites";
+  document.title = `${BRAND_TITLE_BASE} ${BRAND_TITLE_SEPARATOR} ${formattedSiteLabel}`;
   if (!brandTitle) {
     return;
   }
-  const siteLabel = siteFilterValue === SITE_FILTER_ALL ? "All Sites" : String(siteFilterValue || "").trim();
   const titlePrefix = document.createElement("span");
   titlePrefix.className = "brand-title-main";
   titlePrefix.textContent = BRAND_TITLE_BASE;
 
+  const titleSeparator = document.createElement("span");
+  titleSeparator.className = "brand-title-separator";
+  titleSeparator.textContent = BRAND_TITLE_SEPARATOR;
+  titleSeparator.setAttribute("aria-hidden", "true");
+
   const titleSite = document.createElement("span");
   titleSite.className = "brand-title-site";
-  titleSite.textContent = `::${siteLabel || "All Sites"}`;
+  titleSite.textContent = formattedSiteLabel;
 
-  brandTitle.replaceChildren(titlePrefix, titleSite);
+  brandTitle.replaceChildren(titlePrefix, titleSeparator, titleSite);
 }
 
 function getDefaultSiteFilterValue() {
