@@ -15,6 +15,7 @@ const analytics =
 const googleTagId =
   typeof analytics.google_tag_id === "string" ? analytics.google_tag_id.trim() : "";
 let analyticsEnabled = false;
+const pendingAnalyticsEvents = [];
 
 const composer = document.getElementById("composer");
 const queryInput = document.getElementById("queryInput");
@@ -50,10 +51,24 @@ const THEME_GRAYSCALE = "grayscale";
 const SITE_FILTER_ALL = "__all__";
 const SITE_FILTER_DEFAULT = "self-help";
 const BRAND_TITLE_BASE = "CalQuery";
-const BRAND_LOGO_DEFAULT_SRC = "./images/bear-logo-soft.png?v=1";
-const BRAND_LOGO_LIGHT_SRC = "./images/bear-logo-light.png?v=1";
+const BRAND_LOGO_DEFAULT_SRC = "./images/bear-logo-soft-192.png?v=1";
+const BRAND_LOGO_LIGHT_SRC = "./images/bear-logo-light-192.png?v=1";
+const THEME_STYLESHEET_ID = "themeStylesheet";
+const THEME_STYLESHEET_HREFS = {
+  [THEME_KANAGAWA]: "./css/kanagawa-theme.css",
+  [THEME_GRUVBOX_DARK]: "./css/gruvbox-dark-theme.css",
+  [THEME_COURTYARD]: "./css/courtyard-theme.css",
+  [THEME_GRAYSCALE]: "./css/grayscale-theme.css",
+};
+const THEME_FONT_STYLESHEET_ID = "themeFontStylesheet";
+const SUPPLEMENTAL_THEME_FONT_STYLESHEET_HREF =
+  "https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@700;800&family=Lato:wght@400;700;900&family=Lora:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap";
 const THEMES_WITH_LIGHT_LOGO = new Set([
   THEME_GRUVBOX_DARK,
+  THEME_COURTYARD,
+  THEME_GRAYSCALE,
+]);
+const THEMES_WITH_SUPPLEMENTAL_FONTS = new Set([
   THEME_COURTYARD,
   THEME_GRAYSCALE,
 ]);
@@ -293,10 +308,57 @@ function initializeAnalytics() {
     window.gtag("config", googleTagId);
   }
   analyticsEnabled = true;
+  flushPendingAnalyticsEvents();
+}
+
+function flushPendingAnalyticsEvents() {
+  if (!analyticsEnabled || typeof window.gtag !== "function" || !pendingAnalyticsEvents.length) {
+    return;
+  }
+
+  while (pendingAnalyticsEvents.length) {
+    const nextEvent = pendingAnalyticsEvents.shift();
+    if (!nextEvent || !nextEvent.name) {
+      continue;
+    }
+    window.gtag("event", nextEvent.name, nextEvent.params);
+  }
+}
+
+function scheduleAnalyticsInitialization() {
+  if (!googleTagId) {
+    return;
+  }
+
+  const runWhenIdle = () => {
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(() => {
+        initializeAnalytics();
+      }, { timeout: 2500 });
+      return;
+    }
+    window.setTimeout(() => {
+      initializeAnalytics();
+    }, 1200);
+  };
+
+  if (document.readyState === "complete") {
+    runWhenIdle();
+    return;
+  }
+
+  window.addEventListener("load", runWhenIdle, { once: true });
 }
 
 function trackEvent(name, params = {}) {
-  if (!analyticsEnabled || typeof window.gtag !== "function" || !name) {
+  if (!googleTagId || !name) {
+    return;
+  }
+  if (!analyticsEnabled || typeof window.gtag !== "function") {
+    if (pendingAnalyticsEvents.length >= 40) {
+      pendingAnalyticsEvents.shift();
+    }
+    pendingAnalyticsEvents.push({ name, params });
     return;
   }
   window.gtag("event", name, params);
@@ -322,7 +384,7 @@ function classifyErrorType(error) {
   return "other";
 }
 
-initializeAnalytics();
+scheduleAnalyticsInitialization();
 
 function setProcessingBackground(isActive) {
   if (!pageBody) {
@@ -829,9 +891,62 @@ function normalizeThemeName(themeName) {
   return THEME_DEFAULT;
 }
 
+function ensureThemeStylesheet(themeName) {
+  const selectedTheme = normalizeThemeName(themeName);
+  const selectedHref =
+    selectedTheme === THEME_DEFAULT ? "" : (THEME_STYLESHEET_HREFS[selectedTheme] || "");
+  const existingLink = document.getElementById(THEME_STYLESHEET_ID);
+
+  if (!selectedHref) {
+    if (existingLink) {
+      existingLink.remove();
+    }
+    return;
+  }
+
+  if (existingLink && existingLink.getAttribute("href") === selectedHref) {
+    return;
+  }
+
+  const link = existingLink || document.createElement("link");
+  link.id = THEME_STYLESHEET_ID;
+  link.rel = "stylesheet";
+  link.href = selectedHref;
+  if (!existingLink) {
+    document.head.appendChild(link);
+  }
+}
+
+function ensureThemeFonts(themeName) {
+  const selectedTheme = normalizeThemeName(themeName);
+  const shouldLoadSupplementalFonts = THEMES_WITH_SUPPLEMENTAL_FONTS.has(selectedTheme);
+  const existingLink = document.getElementById(THEME_FONT_STYLESHEET_ID);
+
+  if (!shouldLoadSupplementalFonts) {
+    if (existingLink) {
+      existingLink.remove();
+    }
+    return;
+  }
+
+  if (existingLink && existingLink.getAttribute("href") === SUPPLEMENTAL_THEME_FONT_STYLESHEET_HREF) {
+    return;
+  }
+
+  const link = existingLink || document.createElement("link");
+  link.id = THEME_FONT_STYLESHEET_ID;
+  link.rel = "stylesheet";
+  link.href = SUPPLEMENTAL_THEME_FONT_STYLESHEET_HREF;
+  if (!existingLink) {
+    document.head.appendChild(link);
+  }
+}
+
 function setTheme(themeName, options = {}) {
   const selectedTheme = normalizeThemeName(themeName);
   const shouldPersist = options.persist !== false;
+  ensureThemeStylesheet(selectedTheme);
+  ensureThemeFonts(selectedTheme);
 
   if (rootElement) {
     if (selectedTheme === THEME_DEFAULT) {
