@@ -965,6 +965,10 @@ button:disabled {
     overflow: visible;
   }
 
+  .info h2 {
+    font-size: 0.95rem;
+  }
+
   .site-disclaimer {
     width: 100%;
     padding: 0 0.45rem;
@@ -1052,10 +1056,6 @@ button:disabled {
   .info-accordion-content {
     padding: 0 0 0.78rem;
     gap: 0.48rem;
-  }
-
-  .info h2 {
-    font-size: 0.75rem;
   }
 
   .info p,

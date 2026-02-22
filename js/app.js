@@ -112,6 +112,7 @@ const STARTER_QUERY_DISPLAY_COUNT = 3;
 const INSUFFICIENT_INFORMATION_PHRASE = "i do not have enough information";
 const ACCORDION_ANIMATION_DURATION_MS = 220;
 const ACCORDION_ANIMATION_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
+const INFO_ACCORDION_MOBILE_BREAKPOINT_PX = 980;
 const STARTER_QUERIES = [
   "How do I file a small claims case?",
   "What happens after I file a lawsuit?",
@@ -1265,6 +1266,15 @@ if (infoAccordionItems.length) {
     item.open = Boolean(open);
     item.style.height = "";
     item.style.overflow = "";
+  }
+
+  const isMobileInfoAccordionViewport =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia(`(max-width: ${INFO_ACCORDION_MOBILE_BREAKPOINT_PX}px)`).matches;
+  if (isMobileInfoAccordionViewport) {
+    for (const accordionItem of infoAccordionItems) {
+      setAccordionState(accordionItem, false);
+    }
   }
 
   function animateAccordionState(item, open) {
