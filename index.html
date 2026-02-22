@@ -123,23 +123,54 @@
 
     <aside class="info" aria-labelledby="seo-title">
       <h2 id="seo-title">Understand Court Procedures Without the Confusion</h2>
-      <p>
-        CalQuery is an AI assistant that helps you understand court processes, legal forms, and procedural steps.
-        It connects your question to official court information and trusted self-help resources so you can understand what to do next.
-      </p>
-      <p>
-        Whether you're filing a case, responding to court papers, preparing for a hearing, or learning about legal procedures,
-        CalQuery helps you find reliable information quickly.
-      </p>
-      <h3>Common topics:</h3>
-      <ul>
-        <li>Court procedures and timelines</li>
-        <li>Legal forms and filing steps</li>
-        <li>Civil and criminal court processes</li>
-        <li>Evidence and court hearings</li>
-        <li>Dispute resolution options</li>
-        <li>Self-representation guidance</li>
-      </ul>
+      <div class="info-accordion" role="presentation">
+        <details class="info-accordion-item" open>
+          <summary class="info-accordion-summary">
+            <h3>How CalQuery helps</h3>
+          </summary>
+          <div class="info-accordion-content">
+            <p>
+              CalQuery is an AI assistant that helps you understand court processes, legal forms, and procedural steps.
+              It connects your question to official court information and trusted self-help resources so you can understand what to do next.
+            </p>
+            <p>
+              Whether you're filing a case, responding to court papers, preparing for a hearing, or learning about legal procedures,
+              CalQuery helps you find reliable information quickly.
+            </p>
+          </div>
+        </details>
+
+        <details class="info-accordion-item">
+          <summary class="info-accordion-summary">
+            <h3>Common topics</h3>
+          </summary>
+          <div class="info-accordion-content">
+            <ul>
+              <li>Court procedures and timelines</li>
+              <li>Legal forms and filing steps</li>
+              <li>Civil and criminal court processes</li>
+              <li>Evidence and court hearings</li>
+              <li>Dispute resolution options</li>
+              <li>Self-representation guidance</li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="info-accordion-item">
+          <summary class="info-accordion-summary">
+            <h3>Tech stack</h3>
+          </summary>
+          <div class="info-accordion-content">
+            <ul>
+              <li><strong>Retrieval-augmented generation:</strong> each query first retrieves relevant passages from indexed documents, then generates an answer grounded in that evidence.</li>
+              <li><strong>Single-index partitioning:</strong> documents carry a <code>site</code> label, so one shared index can be filtered by source site when needed.</li>
+              <li><strong>Multi-index routing:</strong> a routing layer can split broad questions into targeted sub-queries across multiple indexes and combine the results.</li>
+              <li><strong>Hallucination reduction:</strong> answers are constrained to retrieved context, include source citations, and return an insufficient-information response when evidence is missing.</li>
+              <li><strong>Serving layer:</strong> a static web client calls scalable server-side endpoints, including a streaming route for incremental responses.</li>
+            </ul>
+          </div>
+        </details>
+      </div>
     </aside>
   </div>
 

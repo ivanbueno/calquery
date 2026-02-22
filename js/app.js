@@ -30,6 +30,7 @@ const brandLogo = document.querySelector(".brand-logo");
 const brandText = document.querySelector(".brand-text");
 const rootElement = document.documentElement;
 const pageBody = document.body;
+const infoAccordionItems = Array.from(document.querySelectorAll(".info-accordion-item"));
 let chatScrollRafId = null;
 let brandLogoSyncRafId = null;
 let userHasSubmittedQuery = false;
@@ -67,6 +68,8 @@ const STARTER_MESSAGE_DELAY_MS = 500;
 const STARTER_FOLLOWUP_MESSAGE_DELAY_MS = 1000;
 const STARTER_QUERY_DISPLAY_COUNT = 3;
 const INSUFFICIENT_INFORMATION_PHRASE = "i do not have enough information";
+const ACCORDION_ANIMATION_DURATION_MS = 220;
+const ACCORDION_ANIMATION_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 const STARTER_QUERIES = [
   "How do I file a small claims case?",
   "What happens after I file a lawsuit?",
@@ -884,6 +887,105 @@ loadThemePreference();
 loadRoutingMetaPreference();
 populateSiteFilterOptions();
 loadSiteFilterPreference();
+
+if (infoAccordionItems.length) {
+  const accordionAnimations = new WeakMap();
+
+  function shouldReduceMotion() {
+    return (
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    );
+  }
+
+  function stopAccordionAnimation(item) {
+    const activeAnimation = accordionAnimations.get(item);
+    if (!activeAnimation) {
+      return;
+    }
+    activeAnimation.cancel();
+    accordionAnimations.delete(item);
+  }
+
+  function setAccordionState(item, open) {
+    stopAccordionAnimation(item);
+    item.open = Boolean(open);
+    item.style.height = "";
+    item.style.overflow = "";
+  }
+
+  function animateAccordionState(item, open) {
+    const summary = item.querySelector(".info-accordion-summary");
+    const content = item.querySelector(".info-accordion-content");
+    if (!summary || !content) {
+      setAccordionState(item, open);
+      return;
+    }
+
+    if (shouldReduceMotion() || typeof item.animate !== "function") {
+      setAccordionState(item, open);
+      return;
+    }
+
+    stopAccordionAnimation(item);
+
+    const startHeight = item.offsetHeight || summary.offsetHeight;
+    let endHeight = summary.offsetHeight;
+
+    if (open) {
+      item.open = true;
+      endHeight = summary.offsetHeight + content.offsetHeight;
+    }
+
+    item.style.height = `${startHeight}px`;
+    item.style.overflow = "hidden";
+
+    const animation = item.animate(
+      { height: [`${startHeight}px`, `${endHeight}px`] },
+      {
+        duration: ACCORDION_ANIMATION_DURATION_MS,
+        easing: ACCORDION_ANIMATION_EASING,
+      }
+    );
+
+    accordionAnimations.set(item, animation);
+
+    animation.onfinish = () => {
+      item.open = Boolean(open);
+      item.style.height = "";
+      item.style.overflow = "";
+      accordionAnimations.delete(item);
+    };
+
+    animation.oncancel = () => {
+      item.style.height = "";
+      item.style.overflow = "";
+      accordionAnimations.delete(item);
+    };
+  }
+
+  for (const accordionItem of infoAccordionItems) {
+    const summary = accordionItem.querySelector(".info-accordion-summary");
+    if (!summary) {
+      continue;
+    }
+
+    summary.addEventListener("click", (event) => {
+      event.preventDefault();
+      const isOpening = !accordionItem.open;
+
+      if (isOpening) {
+        for (const otherItem of infoAccordionItems) {
+          if (otherItem !== accordionItem && otherItem.open) {
+            animateAccordionState(otherItem, false);
+          }
+        }
+      }
+
+      animateAccordionState(accordionItem, isOpening);
+    });
+  }
+}
 
 if (toggleRoutingMeta) {
   toggleRoutingMeta.addEventListener("change", (event) => {
