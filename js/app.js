@@ -44,16 +44,22 @@ const THEME_DEFAULT = "default";
 const THEME_KANAGAWA = "kanagawa";
 const THEME_GRUVBOX_DARK = "gruvbox-dark";
 const THEME_COURTYARD = "courtyard";
+const THEME_GRAYSCALE = "grayscale";
 const SITE_FILTER_ALL = "__all__";
 const SITE_FILTER_DEFAULT = "self-help";
 const BRAND_LOGO_DEFAULT_SRC = "./images/bear-logo-soft.png?v=1";
 const BRAND_LOGO_LIGHT_SRC = "./images/bear-logo-light.png?v=1";
-const THEMES_WITH_LIGHT_LOGO = new Set([THEME_GRUVBOX_DARK, THEME_COURTYARD]);
+const THEMES_WITH_LIGHT_LOGO = new Set([
+  THEME_GRUVBOX_DARK,
+  THEME_COURTYARD,
+  THEME_GRAYSCALE,
+]);
 const SUPPORTED_THEMES = new Set([
   THEME_DEFAULT,
   THEME_KANAGAWA,
   THEME_GRUVBOX_DARK,
   THEME_COURTYARD,
+  THEME_GRAYSCALE,
 ]);
 const AVAILABLE_SITE_FILTERS = extractSiteFilters(routes);
 const STARTER_QUERY_MESSAGE_DELAY_MS = 2000;

@@ -1,91 +1,95 @@
 :root[data-theme="courtyard"] {
   --mono: "Source Code Pro", monospace;
-  --sans: "Lato", sans-serif;
-  --display: "Lora", serif;
+  --sans: "Noto Sans JP", "Lato", sans-serif;
+  --display: "Noto Serif JP", "Lora", serif;
 
-  --base3: #f9f9f9;
-  --base2: #f3f3f3;
-  --base1: #919191;
-  --base0: #5c5c5c;
-  --base00: #454545;
-  --base01: #1b1b1b;
-  --yellow: #ffbe2e;
-  --orange: #c05600;
-  --red: #b50909;
-  --magenta: #d72d79;
-  --violet: #8168b3;
-  --blue: #005ea2;
-  --cyan: #28a0cb;
-  --green: #008480;
+  --base3: #f6f1e7;
+  --base2: #e9dfcf;
+  --base1: #8f826f;
+  --base0: #6c5f4d;
+  --base00: #433a2f;
+  --base01: #251f18;
+  --yellow: #b88a3b;
+  --orange: #a66235;
+  --red: #8f4330;
+  --magenta: #835261;
+  --violet: #5f5875;
+  --blue: #314f6b;
+  --cyan: #3d6a67;
+  --green: #5a6a49;
 
-  --ink: #1b1b1b;
-  --subtle: #5c5c5c;
-  --line: #ffbe2e;
-  --bg: #fef0c8;
-  --panel: #005ea2;
-  --teal: #005ea2;
-  --teal-soft: #eff6fb;
-  --user: #e7f2f5;
+  --ink: #251f18;
+  --subtle: #6c5f4d;
+  --line: #a99982;
+  --bg: #ede4d5;
+  --panel: #f4eee2;
+  --teal: #314f6b;
+  --teal-soft: #dce4ea;
+  --user: #e6edf2;
 
-  --shell-shadow: rgba(11, 71, 120, 0.32);
-  --header-gradient-start: #0b4778;
-  --header-gradient-end: #005ea2;
-  --header-title-shadow: rgba(255, 255, 255, 0.78);
-  --chat-log-bg: #fef0c8;
-  --message-bg: #fff;
-  --message-assistant-bg: #eff6fb;
-  --message-user-border: #008480;
-  --message-system-bg: #fef0c8;
-  --message-system-border: #e5a000;
-  --content-pre-border: #c9c9c9;
-  --content-pre-bg: #f3f3f3;
-  --content-code-bg: #e7f2f5;
-  --composer-bg: #005ea2;
-  --textarea-border: #ffbe2e;
-  --textarea-bg: #fff;
-  --textarea-focus-outline: rgba(255, 190, 46, 0.58);
-  --button-shadow: rgba(11, 71, 120, 0.28);
-  --send-loading-base: #e5a000;
-  --send-loading-stripe: rgba(31, 48, 62, 0.34);
-  --settings-focus-outline: rgba(0, 94, 162, 0.34);
-  --settings-panel-bg: #fff;
-  --settings-panel-shadow: rgba(31, 48, 62, 0.18);
-  --footer-bg: #e5a000;
-  --disclaimer-color: rgba(69, 69, 69, 0.7);
-  --disclaimer-color-mobile: rgba(69, 69, 69, 0.62);
+  --shell-shadow: rgba(23, 19, 15, 0.28);
+  --header-gradient-start: #3b566d;
+  --header-gradient-end: #2b4358;
+  --header-title-shadow: rgba(9, 14, 20, 0.32);
+  --chat-log-bg: #f6efe3;
+  --message-bg: #fffaf2;
+  --message-assistant-bg: #efe6d8;
+  --message-user-border: #314f6b;
+  --message-system-bg: #f2e5d1;
+  --message-system-border: #a66235;
+  --content-pre-border: #b5a68f;
+  --content-pre-bg: #e8decd;
+  --content-code-bg: #e2d7c4;
+  --composer-bg: #ece2d1;
+  --textarea-border: #a99982;
+  --textarea-bg: #fffaf2;
+  --textarea-focus-outline: rgba(49, 79, 107, 0.4);
+  --button-shadow: rgba(27, 47, 65, 0.3);
+  --send-loading-base: #a66235;
+  --send-loading-stripe: rgba(33, 25, 18, 0.34);
+  --settings-focus-outline: rgba(49, 79, 107, 0.36);
+  --settings-panel-bg: #f7f0e4;
+  --settings-panel-shadow: rgba(23, 19, 15, 0.2);
+  --footer-bg: #dfd2bd;
+  --disclaimer-color: rgba(37, 31, 24, 0.76);
+  --disclaimer-color-mobile: rgba(37, 31, 24, 0.68);
 }
 
 :root[data-theme="courtyard"] .composer textarea::placeholder {
-  color: #5c5c5c;
+  color: #6c5f4d;
   opacity: 1;
 }
 
 :root[data-theme="courtyard"] #sendButton {
-  background: #ffbe2e;
-  color: #1b1b1b;
+  background: #b88a3b;
+  color: #251f18;
 }
 
 :root[data-theme="courtyard"] #sendButton[data-loading="true"] {
-  color: #1b1b1b;
+  color: #251f18;
 }
 
 :root[data-theme="courtyard"] .chat-header h1,
 :root[data-theme="courtyard"] .header-lead {
-  color: #fff;
+  color: #f6f1e7;
+}
+
+:root[data-theme="courtyard"] .header-kicker {
+  color: #e4d7c0;
 }
 
 :root[data-theme="courtyard"] .chat-footer p {
-  color: #1b1b1b;
+  color: #251f18;
 }
 
 :root[data-theme="courtyard"] .chat-footer a {
-  color: #005ea2;
+  color: #314f6b;
 }
 
 :root[data-theme="courtyard"] .settings-toggle {
-  color: #fff;
+  color: #f6f1e7;
 }
 
 :root[data-theme="courtyard"] .settings-toggle:hover {
-  color: #ffbe2e;
+  color: #d4b077;
 }

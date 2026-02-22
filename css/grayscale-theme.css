@@ -1,0 +1,95 @@
+:root[data-theme="grayscale"] {
+  --mono: "Source Code Pro", monospace;
+  --sans: "Noto Sans JP", "Source Sans 3", sans-serif;
+  --display: "Noto Serif JP", "Alegreya SC", serif;
+
+  --base3: #ffffff;
+  --base2: #f0f0f0;
+  --base1: #9a9a9a;
+  --base0: #6b6b6b;
+  --base00: #2a2a2a;
+  --base01: #111111;
+  --yellow: #9c9c9c;
+  --orange: #7f7f7f;
+  --red: #6c6c6c;
+  --magenta: #5f5f5f;
+  --violet: #525252;
+  --blue: #1a1a1a;
+  --cyan: #4b4b4b;
+  --green: #3a3a3a;
+
+  --ink: #111111;
+  --subtle: #5d5d5d;
+  --line: #3a3a3a;
+  --bg: #e9e9e9;
+  --panel: #ffffff;
+  --teal: #111111;
+  --teal-soft: #f1f1f1;
+  --user: #f4f4f4;
+
+  --shell-shadow: rgba(0, 0, 0, 0.22);
+  --header-gradient-start: #171717;
+  --header-gradient-end: #000000;
+  --header-title-shadow: rgba(0, 0, 0, 0.35);
+  --chat-log-bg: #fafafa;
+  --message-bg: #ffffff;
+  --message-assistant-bg: #f1f1f1;
+  --message-user-border: #111111;
+  --message-system-bg: #e9e9e9;
+  --message-system-border: #666666;
+  --content-pre-border: #7a7a7a;
+  --content-pre-bg: #ececec;
+  --content-code-bg: #e3e3e3;
+  --composer-bg: #f7f7f7;
+  --textarea-border: #2f2f2f;
+  --textarea-bg: #ffffff;
+  --textarea-focus-outline: rgba(0, 0, 0, 0.45);
+  --button-shadow: rgba(0, 0, 0, 0.24);
+  --send-loading-base: #111111;
+  --send-loading-stripe: rgba(255, 255, 255, 0.2);
+  --settings-focus-outline: rgba(0, 0, 0, 0.35);
+  --settings-panel-bg: #ffffff;
+  --settings-panel-shadow: rgba(0, 0, 0, 0.22);
+  --footer-bg: #e6e6e6;
+  --disclaimer-color: rgba(17, 17, 17, 0.72);
+  --disclaimer-color-mobile: rgba(17, 17, 17, 0.64);
+}
+
+:root[data-theme="grayscale"] .composer textarea::placeholder {
+  color: #6b6b6b;
+  opacity: 1;
+}
+
+:root[data-theme="grayscale"] #sendButton {
+  background: #111111;
+  color: #ffffff;
+}
+
+:root[data-theme="grayscale"] #sendButton[data-loading="true"] {
+  color: #ffffff;
+}
+
+:root[data-theme="grayscale"] .chat-header h1,
+:root[data-theme="grayscale"] .header-lead {
+  color: #f6f6f6;
+}
+
+:root[data-theme="grayscale"] .header-kicker {
+  color: #cfcfcf;
+}
+
+:root[data-theme="grayscale"] .chat-footer p {
+  color: #111111;
+}
+
+:root[data-theme="grayscale"] .chat-footer a {
+  color: #111111;
+}
+
+:root[data-theme="grayscale"] .settings-toggle {
+  color: #f6f6f6;
+}
+
+:root[data-theme="grayscale"] .settings-toggle:hover {
+  color: #d1d1d1;
+}
