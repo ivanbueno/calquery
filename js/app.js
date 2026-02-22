@@ -319,6 +319,27 @@ function readSiteFilterFromQueryString() {
   return null;
 }
 
+function syncSiteFilterQueryString(siteValue) {
+  if (typeof window === "undefined" || !window.location || !window.history) {
+    return;
+  }
+
+  const selectedSite = normalizeSiteFilterValue(siteValue);
+  const nextUrl = new URL(window.location.href);
+
+  if (selectedSite === SITE_FILTER_ALL) {
+    nextUrl.searchParams.delete("site");
+  } else {
+    nextUrl.searchParams.set("site", selectedSite);
+  }
+
+  const nextPath = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
+  const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (nextPath !== currentPath) {
+    window.history.replaceState({}, "", nextPath);
+  }
+}
+
 function getSelectedSiteFilter() {
   return normalizeSiteFilterValue(siteSelect ? siteSelect.value : SITE_FILTER_ALL);
 }
@@ -1239,6 +1260,7 @@ if (themeSelect) {
 if (siteSelect) {
   siteSelect.addEventListener("change", (event) => {
     const selectedSite = setSiteFilter(event.target.value);
+    syncSiteFilterQueryString(selectedSite);
     trackEvent("site_filter_toggled", {
       site: toAnalyticsSiteFilter(selectedSite),
     });
