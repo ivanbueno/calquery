@@ -53,4 +53,17 @@
   --footer-bg: #e9e1d3;
   --disclaimer-color: rgba(50, 45, 38, 0.76);
   --disclaimer-color-mobile: rgba(50, 45, 38, 0.7);
+
+  --info-border: rgba(224, 236, 255, 0.24);
+  --info-bg-overlay: rgba(81, 122, 194, 0.24);
+  --info-bg-start: #2a3950;
+  --info-bg-mid: #223148;
+  --info-bg-end: #1a273c;
+  --info-shadow: rgba(0, 0, 0, 0.62);
+  --info-sheen: rgba(255, 255, 255, 0.06);
+  --info-title: #f2f6ff;
+  --info-heading: #dfe9fa;
+  --info-text: #c8d5ea;
+  --info-list: #e2ecfc;
+  --info-marker: #8faee8;
 }

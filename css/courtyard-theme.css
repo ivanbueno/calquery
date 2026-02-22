@@ -53,6 +53,19 @@
   --footer-bg: #dfd2bd;
   --disclaimer-color: rgba(37, 31, 24, 0.76);
   --disclaimer-color-mobile: rgba(37, 31, 24, 0.68);
+
+  --info-border: rgba(219, 205, 178, 0.24);
+  --info-bg-overlay: rgba(85, 125, 162, 0.24);
+  --info-bg-start: #2d445a;
+  --info-bg-mid: #243b52;
+  --info-bg-end: #1d3145;
+  --info-shadow: rgba(16, 20, 28, 0.6);
+  --info-sheen: rgba(255, 255, 255, 0.06);
+  --info-title: #f6f1e7;
+  --info-heading: #e8dcc5;
+  --info-text: #d8caaf;
+  --info-list: #efe3ca;
+  --info-marker: #d4b077;
 }
 
 :root[data-theme="courtyard"] .composer textarea::placeholder {
