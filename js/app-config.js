@@ -1,5 +1,5 @@
 window.RAG_CHATBOT_CONFIG = {
-  "generated_at": "2026-02-22T10:29:55.021587+00:00",
+  "generated_at": "2026-02-22T10:49:18.337403+00:00",
   "orchestrator": {
     "function_name": "rag-chatbot-orchestrator-router",
     "function_url": "https://lsldyl7tiq4rd42dvukd4mrgtm0jcvmz.lambda-url.us-east-1.on.aws/"
@@ -21,5 +21,8 @@ window.RAG_CHATBOT_CONFIG = {
         "What are the top categories in jcc?"
       ]
     }
-  ]
+  ],
+  "analytics": {
+    "google_tag_id": "G-LQ2FHK8V2Y"
+  }
 };

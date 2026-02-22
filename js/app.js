@@ -16,6 +16,7 @@ const googleTagId =
   typeof analytics.google_tag_id === "string" ? analytics.google_tag_id.trim() : "";
 let analyticsEnabled = false;
 const pendingAnalyticsEvents = [];
+let nextSubmitTrigger = "send_button";
 
 const composer = document.getElementById("composer");
 const queryInput = document.getElementById("queryInput");
@@ -277,6 +278,18 @@ function loadSiteFilterPreference() {
 
 function getSelectedSiteFilter() {
   return normalizeSiteFilterValue(siteSelect ? siteSelect.value : SITE_FILTER_ALL);
+}
+
+function toAnalyticsSiteFilter(siteValue) {
+  const normalizedSite = normalizeSiteFilterValue(siteValue);
+  return normalizedSite === SITE_FILTER_ALL ? "all" : normalizedSite;
+}
+
+function toAnalyticsDurationMs(startTime) {
+  if (typeof startTime !== "number" || !Number.isFinite(startTime)) {
+    return 0;
+  }
+  return Math.max(0, Math.round(performance.now() - startTime));
 }
 
 function hasGoogleTagConfig(tagId) {
@@ -695,6 +708,40 @@ function addMessage(role, text, metaText, options = {}) {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
+function extractHostname(urlValue) {
+  try {
+    const parsed = new URL(urlValue, window.location.href);
+    return String(parsed.hostname || "").trim().replace(/^www\./i, "");
+  } catch (error) {
+    return "";
+  }
+}
+
+function trackChatOutboundLinkClick(event) {
+  if (!(event.target instanceof Element)) {
+    return;
+  }
+  const link = event.target.closest("a");
+  if (!link || !chatLog.contains(link)) {
+    return;
+  }
+  if (link.getAttribute("target") !== "_blank") {
+    return;
+  }
+  const href = String(link.getAttribute("href") || "").trim();
+  if (!href) {
+    return;
+  }
+  trackEvent("source_link_clicked", {
+    source_domain: extractHostname(href) || "unknown",
+    link_text_length: String(link.textContent || "").trim().length,
+  });
+}
+
+if (chatLog) {
+  chatLog.addEventListener("click", trackChatOutboundLinkClick);
+}
+
 function createLiveAssistantStream(metaText, options = {}) {
   const { message, textNode } = createMessageElements("assistant", "", options);
   chatLog.appendChild(message);
@@ -843,6 +890,7 @@ function addStarterQueryMessage(queries) {
     link.textContent = suggestion;
     link.addEventListener("click", (event) => {
       event.preventDefault();
+      nextSubmitTrigger = "starter_query";
       trackEvent("starter_query_clicked", {
         query_length: suggestion.length,
       });
@@ -856,6 +904,9 @@ function addStarterQueryMessage(queries) {
 
   chatLog.appendChild(message);
   chatLog.scrollTop = chatLog.scrollHeight;
+  trackEvent("starter_queries_displayed", {
+    query_count: suggestions.length,
+  });
 }
 
 function cancelPendingStarterMessages() {
@@ -1142,7 +1193,7 @@ if (siteSelect) {
   siteSelect.addEventListener("change", (event) => {
     const selectedSite = setSiteFilter(event.target.value);
     trackEvent("site_filter_toggled", {
-      site: selectedSite === SITE_FILTER_ALL ? "all" : selectedSite,
+      site: toAnalyticsSiteFilter(selectedSite),
     });
   });
 }
@@ -1150,7 +1201,12 @@ if (siteSelect) {
 if (settingsToggle && settingsPanel) {
   settingsToggle.addEventListener("click", (event) => {
     event.stopPropagation();
-    setSettingsPanelOpen(settingsPanel.hidden);
+    const nextOpenState = settingsPanel.hidden;
+    setSettingsPanelOpen(nextOpenState);
+    trackEvent("settings_panel_toggled", {
+      open: nextOpenState ? 1 : 0,
+      trigger: "toggle_button",
+    });
   });
 
   document.addEventListener("click", (event) => {
@@ -1161,6 +1217,10 @@ if (settingsToggle && settingsPanel) {
       return;
     }
     setSettingsPanelOpen(false);
+    trackEvent("settings_panel_toggled", {
+      open: 0,
+      trigger: "outside_click",
+    });
   });
 
   document.addEventListener("keydown", (event) => {
@@ -1168,6 +1228,10 @@ if (settingsToggle && settingsPanel) {
       return;
     }
     setSettingsPanelOpen(false);
+    trackEvent("settings_panel_toggled", {
+      open: 0,
+      trigger: "escape_key",
+    });
     settingsToggle.focus();
   });
 }
@@ -1448,7 +1512,7 @@ function renderRouteMessage(routeDetails, selectedSiteFilter) {
   trackEvent("route_selected", {
     selected_index: routeDetails.selectedIndex || "none",
     routed_count: routeDetails.routedIndices.length || (routeDetails.selectedIndex ? 1 : 0),
-    site_filter: selectedSiteFilter === SITE_FILTER_ALL ? "all" : selectedSiteFilter,
+    site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
   });
 }
 
@@ -1492,6 +1556,12 @@ async function requestOrchestrator(query, siteFilter, handlers = {}) {
 }
 
 // Enter sends the request; Shift+Enter inserts a newline.
+if (sendButton) {
+  sendButton.addEventListener("click", () => {
+    nextSubmitTrigger = "send_button";
+  });
+}
+
 queryInput.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
     return;
@@ -1500,6 +1570,7 @@ queryInput.addEventListener("keydown", (event) => {
   if (sendButton.disabled) {
     return;
   }
+  nextSubmitTrigger = "enter_key";
   submitComposerForm();
 });
 
@@ -1514,12 +1585,16 @@ composer.addEventListener("submit", async (event) => {
   userHasSubmittedQuery = true;
   cancelPendingStarterMessages();
   const selectedSiteFilter = getSelectedSiteFilter();
+  const submitTrigger = nextSubmitTrigger || "programmatic";
+  nextSubmitTrigger = "send_button";
+  const queryStartedAt = performance.now();
 
   trackEvent("query_submitted", {
     query_length: query.length,
     route_count: routes.length,
     has_orchestrator: orchestratorUrl ? 1 : 0,
-    site_filter: selectedSiteFilter === SITE_FILTER_ALL ? "all" : selectedSiteFilter,
+    site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
+    submit_trigger: submitTrigger,
   });
 
   sendButton.disabled = true;
@@ -1605,7 +1680,10 @@ composer.addEventListener("submit", async (event) => {
         routed_count: routedCount,
         source_count: sources.length,
         answer_length: answer.length,
-        site_filter: selectedSiteFilter === SITE_FILTER_ALL ? "all" : selectedSiteFilter,
+        site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
+        response_mode: "stream",
+        duration_ms: toAnalyticsDurationMs(queryStartedAt),
+        submit_trigger: submitTrigger,
       });
       return;
     }
@@ -1633,7 +1711,10 @@ composer.addEventListener("submit", async (event) => {
       routed_count: routeDetails.routedIndices.length || (routeDetails.selectedIndex ? 1 : 0),
       source_count: sources.length,
       answer_length: answer.length,
-      site_filter: selectedSiteFilter === SITE_FILTER_ALL ? "all" : selectedSiteFilter,
+      site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
+      response_mode: "json",
+      duration_ms: toAnalyticsDurationMs(queryStartedAt),
+      submit_trigger: submitTrigger,
     });
   } catch (error) {
     if (!liveAssistant.getText()) {
@@ -1642,7 +1723,9 @@ composer.addEventListener("submit", async (event) => {
     addMessage("system", String(error.message || error), "orchestrator");
     trackEvent("query_failed", {
       error_type: classifyErrorType(error),
-      site_filter: selectedSiteFilter === SITE_FILTER_ALL ? "all" : selectedSiteFilter,
+      site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
+      duration_ms: toAnalyticsDurationMs(queryStartedAt),
+      submit_trigger: submitTrigger,
     });
   } finally {
     setProcessingBackground(false);
@@ -1691,4 +1774,5 @@ starterQueryTimeoutId = window.setTimeout(() => {
 trackEvent("app_loaded", {
   route_count: routes.length,
   has_orchestrator: orchestratorUrl ? 1 : 0,
+  site_filter: toAnalyticsSiteFilter(getSelectedSiteFilter()),
 });
