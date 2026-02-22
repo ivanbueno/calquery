@@ -688,13 +688,25 @@ button:disabled {
   border-top: 1px solid var(--line);
   padding: 0.56rem 0.9rem 0.62rem;
   background: var(--footer-bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
 }
 
 .chat-footer p {
   margin: 0;
   color: var(--base00);
   font-size: 0.76rem;
-  text-align: center;
+}
+
+.chat-footer .footer-copy {
+  text-align: left;
+}
+
+.chat-footer .footer-inquiries {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .chat-footer a {
@@ -766,6 +778,16 @@ button:disabled {
   .message {
     max-width: 95%;
     border-radius: 16px;
+  }
+
+  .chat-footer {
+    flex-wrap: wrap;
+    gap: 0.2rem 1rem;
+  }
+
+  .chat-footer .footer-copy,
+  .chat-footer .footer-inquiries {
+    width: 100%;
   }
 
   .site-disclaimer {
