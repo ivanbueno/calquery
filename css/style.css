@@ -953,6 +953,10 @@ button:disabled {
     width: 100%;
   }
 
+  .chat-footer .footer-inquiries {
+    text-align: left;
+  }
+
   .site-disclaimer {
     font-size: 0.65rem;
     color: var(--disclaimer-color-mobile);
