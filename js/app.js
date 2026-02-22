@@ -51,8 +51,8 @@ const THEME_GRAYSCALE = "grayscale";
 const SITE_FILTER_ALL = "__all__";
 const SITE_FILTER_DEFAULT = "self-help";
 const BRAND_TITLE_BASE = "CalQuery";
-const BRAND_LOGO_DEFAULT_SRC = "./images/bear-logo-soft-192.png?v=1";
-const BRAND_LOGO_LIGHT_SRC = "./images/bear-logo-light-192.png?v=1";
+const BRAND_LOGO_DEFAULT_SRC = "./images/bear-logo-soft-192.webp?v=2";
+const BRAND_LOGO_LIGHT_SRC = "./images/bear-logo-light-192.webp?v=2";
 const THEME_STYLESHEET_ID = "themeStylesheet";
 const THEME_STYLESHEET_HREFS = {
   [THEME_KANAGAWA]: "./css/kanagawa-theme.css",
