@@ -195,7 +195,15 @@ function updateBrandTitle(siteFilterValue) {
     return;
   }
   const siteLabel = siteFilterValue === SITE_FILTER_ALL ? "All Sites" : String(siteFilterValue || "").trim();
-  brandTitle.textContent = `${BRAND_TITLE_BASE}::${siteLabel || "All Sites"}`;
+  const titlePrefix = document.createElement("span");
+  titlePrefix.className = "brand-title-main";
+  titlePrefix.textContent = BRAND_TITLE_BASE;
+
+  const titleSite = document.createElement("span");
+  titleSite.className = "brand-title-site";
+  titleSite.textContent = `::${siteLabel || "All Sites"}`;
+
+  brandTitle.replaceChildren(titlePrefix, titleSite);
 }
 
 function getDefaultSiteFilterValue() {

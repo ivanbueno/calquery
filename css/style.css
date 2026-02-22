@@ -270,6 +270,16 @@ a.brand-text:active {
   text-shadow: 0 1px 0 var(--header-title-shadow);
 }
 
+.brand-title-main {
+  color: inherit;
+}
+
+.brand-title-site {
+  color: inherit;
+  opacity: 0.68;
+  font-weight: 600;
+}
+
 .header-lead {
   margin: 0.02rem 0 0;
   color: var(--base01);
