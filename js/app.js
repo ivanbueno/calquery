@@ -276,6 +276,49 @@ function loadSiteFilterPreference() {
   setSiteFilter(getDefaultSiteFilterValue(), { persist: false });
 }
 
+function readSiteFilterFromQueryString() {
+  if (typeof window === "undefined" || !window.location) {
+    return null;
+  }
+
+  const searchText = String(window.location.search || "");
+  if (!searchText) {
+    return null;
+  }
+
+  try {
+    const params = new URLSearchParams(searchText);
+    const rawSite = String(params.get("site") || "").trim();
+    if (!rawSite) {
+      return null;
+    }
+
+    if (rawSite === SITE_FILTER_ALL || rawSite.toLowerCase() === "all") {
+      return SITE_FILTER_ALL;
+    }
+
+    const explicitSite = normalizeSiteFilterValue(rawSite);
+    if (explicitSite !== SITE_FILTER_ALL) {
+      return explicitSite;
+    }
+
+    const normalizedKey = normalizeSiteKey(rawSite);
+    if (!normalizedKey) {
+      return null;
+    }
+
+    for (const availableSite of AVAILABLE_SITE_FILTERS) {
+      if (normalizeSiteKey(availableSite) === normalizedKey) {
+        return availableSite;
+      }
+    }
+  } catch (error) {
+    return null;
+  }
+
+  return null;
+}
+
 function getSelectedSiteFilter() {
   return normalizeSiteFilterValue(siteSelect ? siteSelect.value : SITE_FILTER_ALL);
 }
@@ -1073,6 +1116,10 @@ loadThemePreference();
 loadRoutingMetaPreference();
 populateSiteFilterOptions();
 loadSiteFilterPreference();
+const queryStringSiteFilter = readSiteFilterFromQueryString();
+if (queryStringSiteFilter !== null) {
+  setSiteFilter(queryStringSiteFilter, { persist: false });
+}
 
 if (infoAccordionItems.length) {
   const accordionAnimations = new WeakMap();
