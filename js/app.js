@@ -28,6 +28,7 @@ const themeSelect = document.getElementById("themeSelect");
 const siteSelect = document.getElementById("siteSelect");
 const brandLogo = document.querySelector(".brand-logo");
 const brandText = document.querySelector(".brand-text");
+const brandTitle = document.querySelector(".brand-text h1");
 const rootElement = document.documentElement;
 const pageBody = document.body;
 const infoAccordionItems = Array.from(document.querySelectorAll(".info-accordion-item"));
@@ -48,6 +49,7 @@ const THEME_COURTYARD = "courtyard";
 const THEME_GRAYSCALE = "grayscale";
 const SITE_FILTER_ALL = "__all__";
 const SITE_FILTER_DEFAULT = "self-help";
+const BRAND_TITLE_BASE = "CalQuery";
 const BRAND_LOGO_DEFAULT_SRC = "./images/bear-logo-soft.png?v=1";
 const BRAND_LOGO_LIGHT_SRC = "./images/bear-logo-light.png?v=1";
 const THEMES_WITH_LIGHT_LOGO = new Set([
@@ -173,6 +175,14 @@ function normalizeSiteKey(siteValue) {
     .replace(/^-+|-+$/g, "");
 }
 
+function updateBrandTitle(siteFilterValue) {
+  if (!brandTitle) {
+    return;
+  }
+  const siteLabel = siteFilterValue === SITE_FILTER_ALL ? "All Sites" : String(siteFilterValue || "").trim();
+  brandTitle.textContent = `${BRAND_TITLE_BASE}::${siteLabel || "All Sites"}`;
+}
+
 function getDefaultSiteFilterValue() {
   const targetKey = normalizeSiteKey(SITE_FILTER_DEFAULT);
   for (const availableSite of AVAILABLE_SITE_FILTERS) {
@@ -190,6 +200,8 @@ function setSiteFilter(siteValue, options = {}) {
   if (siteSelect && siteSelect.value !== selectedSiteFilter) {
     siteSelect.value = selectedSiteFilter;
   }
+
+  updateBrandTitle(selectedSiteFilter);
 
   if (shouldPersist) {
     try {
