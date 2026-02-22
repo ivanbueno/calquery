@@ -77,10 +77,10 @@ const STARTER_QUERIES = [
   "What happens if I miss a court deadline?",
   "How do court filing fees work?",
   "What does \"motion\" mean in court?",
-  "How long does a court case usually take?",
   "What deadlines apply after filing an appeal and what steps come next?",
   "What is the difference between mediation, arbitration, and going to trial?",
-  "How do I challenge evidence or object during a court proceeding?"
+  "How do I challenge evidence or object during a court proceeding?",
+  "What forms do I need for name change?"
 ];
 
 if (footerYear) {

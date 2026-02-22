@@ -1,7 +1,7 @@
 :root {
   --mono: "Source Code Pro", monospace;
-  --sans: "Noto Sans JP", "Source Sans 3", sans-serif;
-  --display: "Noto Serif JP", "Alegreya SC", serif;
+  --sans: "Manrope", "Noto Sans JP", "Source Sans 3", sans-serif;
+  --display: "Sora", "Alegreya SC", "Noto Serif JP", serif;
 
   --base3: #f7f4ed;
   --base2: #ebe6dc;
