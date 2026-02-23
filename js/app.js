@@ -1380,6 +1380,7 @@ if (siteSelect) {
 if (clearCacheButton) {
   const clearCacheLabel = clearCacheButton.querySelector(".clear-cache-label");
   clearCacheButton.addEventListener("click", () => {
+    const entryCount = Object.keys(loadResponseCache()).length;
     clearResponseCache();
     if (clearCacheLabel) {
       clearCacheLabel.textContent = "Cleared";
@@ -1387,7 +1388,9 @@ if (clearCacheButton) {
         clearCacheLabel.textContent = "Clear cache";
       }, 1500);
     }
-    trackEvent("cache_cleared");
+    trackEvent("cache_cleared", {
+      entry_count: entryCount,
+    });
   });
 }
 
@@ -1763,6 +1766,7 @@ function setCachedResponse(query, site, persona, data) {
   const cache = loadResponseCache();
   cache[key] = { ...data, ts: Date.now() };
   saveResponseCache(cache);
+  return Object.keys(cache).length;
 }
 
 function clearResponseCache() {
@@ -1849,6 +1853,7 @@ composer.addEventListener("submit", async (event) => {
   nextSubmitTrigger = "send_button";
   const queryStartedAt = performance.now();
 
+  const cached = getCachedResponse(query, selectedSiteFilter, selectedPersona);
   trackEvent("query_submitted", {
     query_length: query.length,
     route_count: routes.length,
@@ -1856,6 +1861,7 @@ composer.addEventListener("submit", async (event) => {
     site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
     persona: selectedPersona,
     submit_trigger: submitTrigger,
+    cache_hit: cached ? 1 : 0,
   });
 
   sendButton.disabled = true;
@@ -1867,7 +1873,6 @@ composer.addEventListener("submit", async (event) => {
   const liveAssistant = createLiveAssistantStream("", { metaType: "routing" });
 
   try {
-    const cached = getCachedResponse(query, selectedSiteFilter, selectedPersona);
     if (cached) {
       const routeDetails = describeRoute(cached.route || {});
       renderRouteMessage(routeDetails, selectedSiteFilter);
@@ -1965,10 +1970,15 @@ composer.addEventListener("submit", async (event) => {
         });
       }
 
-      setCachedResponse(query, selectedSiteFilter, selectedPersona, {
+      const streamCacheSize = setCachedResponse(query, selectedSiteFilter, selectedPersona, {
         answer: rawAnswer,
         sources,
         route: routeDetails ? routeDetails.route : {},
+      });
+      trackEvent("cache_entry_stored", {
+        answer_length: rawAnswer.length,
+        source_count: sources.length,
+        cache_size: streamCacheSize,
       });
 
       const selectedIndex = routeDetails ? routeDetails.selectedIndex : "";
@@ -2008,10 +2018,15 @@ composer.addEventListener("submit", async (event) => {
         disableAutoScroll: true,
       });
     }
-    setCachedResponse(query, selectedSiteFilter, selectedPersona, {
+    const jsonCacheSize = setCachedResponse(query, selectedSiteFilter, selectedPersona, {
       answer: rawAnswer,
       sources,
       route,
+    });
+    trackEvent("cache_entry_stored", {
+      answer_length: rawAnswer.length,
+      source_count: sources.length,
+      cache_size: jsonCacheSize,
     });
     trackEvent("query_succeeded", {
       selected_index: routeDetails.selectedIndex || "none",
