@@ -464,6 +464,42 @@ a.brand-text:active {
   border-color: var(--cyan);
 }
 
+.settings-action {
+  padding-top: 0.25rem;
+}
+
+.clear-cache-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: none;
+  border-radius: 6px;
+  padding: 0.32rem 0.6rem;
+  font: inherit;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: var(--subtle);
+  background: transparent;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.clear-cache-button:hover {
+  color: var(--red);
+  background: rgba(159, 59, 47, 0.08);
+}
+
+.clear-cache-button:focus-visible {
+  outline: 2px solid var(--settings-focus-outline);
+  outline-offset: 1px;
+}
+
+.clear-cache-icon {
+  width: 0.95em;
+  height: 0.95em;
+  flex-shrink: 0;
+}
+
 .chat-log {
   overflow: auto;
   padding: 1.05rem 1.1rem 1.2rem;

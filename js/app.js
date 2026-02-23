@@ -29,6 +29,7 @@ const toggleRoutingMeta = document.getElementById("toggleRoutingMeta");
 const themeSelect = document.getElementById("themeSelect");
 const siteSelect = document.getElementById("siteSelect");
 const personaSelect = document.getElementById("personaSelect");
+const clearCacheButton = document.getElementById("clearCacheButton");
 const brandLogo = document.querySelector(".brand-logo");
 const brandText = document.querySelector(".brand-text");
 const brandTitle = document.querySelector(".brand-text h1");
@@ -105,6 +106,8 @@ const PERSONA_ANSWER_PREFIX = {
   [PERSONA_JEFF_WINGER]: "Here is the strongest answer the record supports:",
 };
 const AVAILABLE_SITE_FILTERS = extractSiteFilters(routes);
+const RESPONSE_CACHE_STORAGE_KEY = "calquery-response-cache";
+const RESPONSE_CACHE_MAX_ENTRIES = 50;
 const STARTER_QUERY_MESSAGE_DELAY_MS = 2000;
 const STARTER_MESSAGE_DELAY_MS = 500;
 const STARTER_FOLLOWUP_MESSAGE_DELAY_MS = 1000;
@@ -1374,6 +1377,20 @@ if (siteSelect) {
   });
 }
 
+if (clearCacheButton) {
+  const clearCacheLabel = clearCacheButton.querySelector(".clear-cache-label");
+  clearCacheButton.addEventListener("click", () => {
+    clearResponseCache();
+    if (clearCacheLabel) {
+      clearCacheLabel.textContent = "Cleared";
+      setTimeout(() => {
+        clearCacheLabel.textContent = "Clear cache";
+      }, 1500);
+    }
+    trackEvent("cache_cleared");
+  });
+}
+
 if (settingsToggle && settingsPanel) {
   settingsToggle.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -1693,6 +1710,69 @@ function renderRouteMessage(routeDetails, selectedSiteFilter) {
   });
 }
 
+function buildResponseCacheKey(query, site, persona) {
+  const q = String(query || "").trim().toLowerCase();
+  const s = String(site || "").trim().toLowerCase();
+  const p = String(persona || "").trim().toLowerCase();
+  return `${q}::${s}::${p}`;
+}
+
+function loadResponseCache() {
+  try {
+    const raw = window.localStorage.getItem(RESPONSE_CACHE_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch (_error) {
+    return {};
+  }
+}
+
+function saveResponseCache(cache) {
+  try {
+    const keys = Object.keys(cache);
+    if (keys.length > RESPONSE_CACHE_MAX_ENTRIES) {
+      const sorted = keys
+        .map((key) => ({ key, ts: (cache[key] && cache[key].ts) || 0 }))
+        .sort((a, b) => a.ts - b.ts);
+      const removeCount = keys.length - RESPONSE_CACHE_MAX_ENTRIES;
+      for (let i = 0; i < removeCount; i++) {
+        delete cache[sorted[i].key];
+      }
+    }
+    window.localStorage.setItem(RESPONSE_CACHE_STORAGE_KEY, JSON.stringify(cache));
+  } catch (_error) {
+    // Ignore storage failures.
+  }
+}
+
+function getCachedResponse(query, site, persona) {
+  const key = buildResponseCacheKey(query, site, persona);
+  const cache = loadResponseCache();
+  const entry = cache[key];
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+  return entry;
+}
+
+function setCachedResponse(query, site, persona, data) {
+  const key = buildResponseCacheKey(query, site, persona);
+  const cache = loadResponseCache();
+  cache[key] = { ...data, ts: Date.now() };
+  saveResponseCache(cache);
+}
+
+function clearResponseCache() {
+  try {
+    window.localStorage.removeItem(RESPONSE_CACHE_STORAGE_KEY);
+  } catch (_error) {
+    // Ignore storage failures.
+  }
+}
+
 async function requestOrchestrator(query, siteFilter, persona, handlers = {}) {
   if (!orchestratorUrl) {
     throw new Error("Missing orchestrator function URL. Run launch to update app-config.js.");
@@ -1787,6 +1867,38 @@ composer.addEventListener("submit", async (event) => {
   const liveAssistant = createLiveAssistantStream("", { metaType: "routing" });
 
   try {
+    const cached = getCachedResponse(query, selectedSiteFilter, selectedPersona);
+    if (cached) {
+      const routeDetails = describeRoute(cached.route || {});
+      renderRouteMessage(routeDetails, selectedSiteFilter);
+      const rawAnswer = String(cached.answer || "").trim() || "(no answer field returned)";
+      const answer = applyPersonaAnswerVoice(rawAnswer, selectedPersona);
+      const sources = Array.isArray(cached.sources) ? cached.sources : [];
+      const shouldShowSources = !isInsufficientInformationAnswer(rawAnswer);
+      const sourcesMarkdown = shouldShowSources ? buildSourcesMarkdown(sources) : "";
+
+      liveAssistant.setMeta(routeDetails.answerMeta);
+      liveAssistant.finalize(answer);
+      if (sourcesMarkdown) {
+        addMessage("system", sourcesMarkdown.trim(), undefined, {
+          renderMarkdown: true,
+          disableAutoScroll: true,
+        });
+      }
+      trackEvent("query_succeeded", {
+        selected_index: routeDetails.selectedIndex || "none",
+        routed_count: routeDetails.routedIndices.length || (routeDetails.selectedIndex ? 1 : 0),
+        source_count: sources.length,
+        answer_length: answer.length,
+        site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
+        persona: selectedPersona,
+        response_mode: "cache",
+        duration_ms: toAnalyticsDurationMs(queryStartedAt),
+        submit_trigger: submitTrigger,
+      });
+      return;
+    }
+
     let routeDetails = null;
     let routeMessageRendered = false;
     let streamRoute = null;
@@ -1853,6 +1965,12 @@ composer.addEventListener("submit", async (event) => {
         });
       }
 
+      setCachedResponse(query, selectedSiteFilter, selectedPersona, {
+        answer: rawAnswer,
+        sources,
+        route: routeDetails ? routeDetails.route : {},
+      });
+
       const selectedIndex = routeDetails ? routeDetails.selectedIndex : "";
       const routedCount = routeDetails
         ? routeDetails.routedIndices.length || (routeDetails.selectedIndex ? 1 : 0)
@@ -1890,6 +2008,11 @@ composer.addEventListener("submit", async (event) => {
         disableAutoScroll: true,
       });
     }
+    setCachedResponse(query, selectedSiteFilter, selectedPersona, {
+      answer: rawAnswer,
+      sources,
+      route,
+    });
     trackEvent("query_succeeded", {
       selected_index: routeDetails.selectedIndex || "none",
       routed_count: routeDetails.routedIndices.length || (routeDetails.selectedIndex ? 1 : 0),
