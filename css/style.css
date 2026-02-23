@@ -683,7 +683,7 @@ a.brand-text:active {
 .message.assistant::before {
   content: "";
   position: absolute;
-  left: -9px;
+  left: -8px;
   top: 14px;
   width: 6px;
   height: 6px;
@@ -705,7 +705,7 @@ a.brand-text:active {
 .message.user::before {
   content: "";
   position: absolute;
-  right: -9px;
+  right: -8px;
   top: 14px;
   width: 6px;
   height: 6px;
