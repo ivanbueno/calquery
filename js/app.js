@@ -219,7 +219,6 @@ function normalizeSiteKey(siteValue) {
 function updateBrandTitle(siteFilterValue) {
   const siteLabel = siteFilterValue === SITE_FILTER_ALL ? "All Sites" : String(siteFilterValue || "").trim();
   const formattedSiteLabel = siteLabel || "All Sites";
-  document.title = `${BRAND_TITLE_BASE} ${BRAND_TITLE_SEPARATOR} ${formattedSiteLabel}`;
   if (!brandTitle) {
     return;
   }
