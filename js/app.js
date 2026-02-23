@@ -112,30 +112,29 @@ const STARTER_QUERY_MESSAGE_DELAY_MS = 2000;
 const STARTER_MESSAGE_DELAY_MS = 500;
 const STARTER_FOLLOWUP_MESSAGE_DELAY_MS = 1000;
 const STARTER_QUERY_DISPLAY_COUNT = 3;
-const INSUFFICIENT_INFORMATION_PHRASES = [
-  "do not have enough information",
-  "do not have sufficient information",
-  "not have enough information",
-  "insufficient information",
-  "cannot provide an answer",
-  "unable to provide an answer",
-  "unable to answer",
-  "does not contain information",
-  "does not contain enough information",
-  "does not contain specific information",
-  "does not provide information",
-  "did not yield any relevant",
-  "no relevant information",
-  "no relevant results",
-  "cannot answer your",
-  "cannot answer this",
-  "outside the scope of the provided",
-  "beyond the scope of the provided",
-  "lack the information",
-  "missing the information",
-  "do not have the details",
-  "do not have the specifics"
-];
+const INSUFFICIENT_INFORMATION_PATTERN = new RegExp(
+  [
+    // "(not | don't) have" + "enough / sufficient / adequate" + "information"
+    "(?:not|don't)\\s+have\\s+(?:enough|sufficient|adequate)\\s+information",
+    // "insufficient / inadequate information"
+    "(?:insufficient|inadequate)\\s+information",
+    // "does not / didn't / could not" + "contain / provide / include" + optional words + "information"
+    "(?:does\\s+not|didn't|could\\s+not)\\s+(?:contain|provide|include)\\s+(?:\\w+\\s+){0,2}information",
+    // "did not yield any relevant"
+    "did\\s+not\\s+yield\\s+(?:any\\s+)?relevant",
+    // "no relevant information / results / data / content"
+    "no\\s+relevant\\s+(?:information|results?|data|content)",
+    // "cannot / can't / unable to" + "provide [a] [adj] answer" OR "answer your/this/the [noun]"
+    "(?:cannot|can't|unable\\s+to)\\s+(?:provide\\s+(?:a\\s+)?(?:\\w+\\s+){0,2}answer|answer\\s+(?:your|this|the)\\s+\\w+)",
+    // "outside / beyond the scope of"
+    "(?:outside|beyond)\\s+the\\s+scope\\s+of",
+    // "lack / missing [the] information / details / specifics"
+    "(?:lack|missing)\\s+(?:the\\s+)?(?:information|details|specifics)",
+    // "no information about / on / regarding"
+    "no\\s+information\\s+(?:about|on|regarding)",
+  ].join("|"),
+  "i"
+);
 const ACCORDION_ANIMATION_DURATION_MS = 220;
 const ACCORDION_ANIMATION_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 const INFO_ACCORDION_MOBILE_BREAKPOINT_PX = 980;
@@ -1676,7 +1675,7 @@ function isInsufficientInformationAnswer(answer) {
     .replace(/[`*_#>~[\]()]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  return INSUFFICIENT_INFORMATION_PHRASES.some((phrase) => normalized.includes(phrase));
+  return INSUFFICIENT_INFORMATION_PATTERN.test(normalized);
 }
 
 function getRequestSiteFilter(siteFilterValue) {
