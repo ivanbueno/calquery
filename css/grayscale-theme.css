@@ -31,6 +31,20 @@
   --message-assistant-accent: #000000;
   --focus-glow: rgba(0, 0, 0, 0.1);
   --grain-opacity: 0.015;
+  --body-grain-opacity: 0.018;
+  --ruled-line-color: rgba(0, 0, 0, 0.04);
+  --pinstripe-color: rgba(0, 0, 0, 0.16);
+  --pinstripe-highlight: rgba(255, 255, 255, 0.8);
+  --stitch-color: rgba(0, 0, 0, 0.18);
+  --inner-glow: rgba(255, 255, 255, 0.7);
+  --vignette-opacity: 0.22;
+  --emboss-shadow: rgba(0, 0, 0, 0.06);
+  --emboss-highlight: rgba(255, 255, 255, 0.8);
+  --header-rule-color: rgba(0, 0, 0, 0.12);
+  --footer-engrave-color: rgba(0, 0, 0, 0.18);
+  --footer-engrave-highlight: rgba(255, 255, 255, 0.7);
+  --ledger-line-color: rgba(0, 0, 0, 0.03);
+  --pointer-color: var(--message-assistant-accent);
 
   --shell-shadow: rgba(0, 0, 0, 0.22);
   --header-gradient-start: #000000;
