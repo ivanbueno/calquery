@@ -112,7 +112,30 @@ const STARTER_QUERY_MESSAGE_DELAY_MS = 2000;
 const STARTER_MESSAGE_DELAY_MS = 500;
 const STARTER_FOLLOWUP_MESSAGE_DELAY_MS = 1000;
 const STARTER_QUERY_DISPLAY_COUNT = 3;
-const INSUFFICIENT_INFORMATION_PHRASE = "i do not have enough information";
+const INSUFFICIENT_INFORMATION_PHRASES = [
+  "do not have enough information",
+  "do not have sufficient information",
+  "not have enough information",
+  "insufficient information",
+  "cannot provide an answer",
+  "unable to provide an answer",
+  "unable to answer",
+  "does not contain information",
+  "does not contain enough information",
+  "does not contain specific information",
+  "does not provide information",
+  "did not yield any relevant",
+  "no relevant information",
+  "no relevant results",
+  "cannot answer your",
+  "cannot answer this",
+  "outside the scope of the provided",
+  "beyond the scope of the provided",
+  "lack the information",
+  "missing the information",
+  "do not have the details",
+  "do not have the specifics"
+];
 const ACCORDION_ANIMATION_DURATION_MS = 220;
 const ACCORDION_ANIMATION_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 const INFO_ACCORDION_MOBILE_BREAKPOINT_PX = 980;
@@ -1653,7 +1676,7 @@ function isInsufficientInformationAnswer(answer) {
     .replace(/[`*_#>~[\]()]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  return normalized.includes(INSUFFICIENT_INFORMATION_PHRASE);
+  return INSUFFICIENT_INFORMATION_PHRASES.some((phrase) => normalized.includes(phrase));
 }
 
 function getRequestSiteFilter(siteFilterValue) {
@@ -1818,6 +1841,76 @@ async function requestOrchestrator(query, siteFilter, persona, handlers = {}) {
   return { mode: "json", result: normalized };
 }
 
+async function executeQuery(query, siteFilter, persona, liveAssistant) {
+  let routeDetails = null;
+  let routeMessageRendered = false;
+  let streamRoute = null;
+  let streamSources = [];
+  let streamAnswer = "";
+
+  const orchestratorResponse = await requestOrchestrator(query, siteFilter, persona, {
+    onRoute(payload) {
+      const routePayload =
+        payload && typeof payload === "object" && payload.route && typeof payload.route === "object"
+          ? payload.route
+          : payload;
+      routeDetails = describeRoute(routePayload);
+      streamRoute = routeDetails.route;
+      if (!routeMessageRendered) {
+        renderRouteMessage(routeDetails, siteFilter);
+        routeMessageRendered = true;
+      }
+      liveAssistant.setMeta(routeDetails.answerMeta);
+    },
+    onDelta(deltaText) {
+      liveAssistant.append(deltaText);
+    },
+    onDone(payload) {
+      if (!payload || typeof payload !== "object") {
+        return;
+      }
+      if (typeof payload.answer === "string") {
+        streamAnswer = payload.answer;
+      }
+      if (Array.isArray(payload.sources)) {
+        streamSources = payload.sources;
+      }
+      if (payload.route && typeof payload.route === "object") {
+        streamRoute = payload.route;
+      }
+    },
+  });
+
+  if (orchestratorResponse.mode === "stream") {
+    if (!routeDetails && streamRoute) {
+      routeDetails = describeRoute(streamRoute);
+    }
+    if (routeDetails && !routeMessageRendered) {
+      renderRouteMessage(routeDetails, siteFilter);
+      routeMessageRendered = true;
+    }
+    if (routeDetails) {
+      liveAssistant.setMeta(routeDetails.answerMeta);
+    }
+
+    const streamedText = String(streamAnswer || liveAssistant.getText() || "").trim();
+    const rawAnswer = streamedText || "(no answer field returned)";
+    const sources = Array.isArray(streamSources) ? streamSources : [];
+
+    return { rawAnswer, sources, routeDetails, responseMode: "stream" };
+  }
+
+  const result = orchestratorResponse.result;
+  const route = result.route && typeof result.route === "object" ? result.route : {};
+  routeDetails = describeRoute(route);
+  renderRouteMessage(routeDetails, siteFilter);
+
+  const rawAnswer = String(result.answer || "").trim() || "(no answer field returned)";
+  const sources = Array.isArray(result.sources) ? result.sources : [];
+
+  return { rawAnswer, sources, routeDetails, responseMode: "json" };
+}
+
 // Enter sends the request; Shift+Enter inserts a newline.
 if (sendButton) {
   sendButton.addEventListener("click", () => {
@@ -1870,7 +1963,7 @@ composer.addEventListener("submit", async (event) => {
   setProcessingBackground(true);
   addMessage("user", query);
   queryInput.value = "";
-  const liveAssistant = createLiveAssistantStream("", { metaType: "routing" });
+  let liveAssistant = createLiveAssistantStream("", { metaType: "routing" });
 
   try {
     if (cached) {
@@ -1904,138 +1997,65 @@ composer.addEventListener("submit", async (event) => {
       return;
     }
 
-    let routeDetails = null;
-    let routeMessageRendered = false;
-    let streamRoute = null;
-    let streamSources = [];
-    let streamAnswer = "";
+    let queryResult = await executeQuery(query, selectedSiteFilter, selectedPersona, liveAssistant);
+    let { rawAnswer, sources, routeDetails, responseMode } = queryResult;
+    let retriedAllSites = false;
 
-    const orchestratorResponse = await requestOrchestrator(query, selectedSiteFilter, selectedPersona, {
-      onRoute(payload) {
-        const routePayload =
-          payload && typeof payload === "object" && payload.route && typeof payload.route === "object"
-            ? payload.route
-            : payload;
-        routeDetails = describeRoute(routePayload);
-        streamRoute = routeDetails.route;
-        if (!routeMessageRendered) {
-          renderRouteMessage(routeDetails, selectedSiteFilter);
-          routeMessageRendered = true;
-        }
-        liveAssistant.setMeta(routeDetails.answerMeta);
-      },
-      onDelta(deltaText) {
-        liveAssistant.append(deltaText);
-      },
-      onDone(payload) {
-        if (!payload || typeof payload !== "object") {
-          return;
-        }
-        if (typeof payload.answer === "string") {
-          streamAnswer = payload.answer;
-        }
-        if (Array.isArray(payload.sources)) {
-          streamSources = payload.sources;
-        }
-        if (payload.route && typeof payload.route === "object") {
-          streamRoute = payload.route;
-        }
-      },
-    });
-
-    if (orchestratorResponse.mode === "stream") {
-      if (!routeDetails && streamRoute) {
-        routeDetails = describeRoute(streamRoute);
-      }
-      if (routeDetails && !routeMessageRendered) {
-        renderRouteMessage(routeDetails, selectedSiteFilter);
-        routeMessageRendered = true;
-      }
-      if (routeDetails) {
-        liveAssistant.setMeta(routeDetails.answerMeta);
-      }
-
-      const streamedText = String(streamAnswer || liveAssistant.getText() || "").trim();
-      const rawAnswer = streamedText || "(no answer field returned)";
-      const answer = applyPersonaAnswerVoice(rawAnswer, selectedPersona);
-      liveAssistant.finalize(answer);
-
-      const sources = Array.isArray(streamSources) ? streamSources : [];
-      const shouldShowSources = !isInsufficientInformationAnswer(rawAnswer);
-      const sourcesMarkdown = shouldShowSources ? buildSourcesMarkdown(sources) : "";
-      if (sourcesMarkdown) {
-        addMessage("system", sourcesMarkdown.trim(), undefined, {
-          renderMarkdown: true,
-          disableAutoScroll: true,
-        });
-      }
-
-      const streamCacheSize = setCachedResponse(query, selectedSiteFilter, selectedPersona, {
-        answer: rawAnswer,
-        sources,
-        route: routeDetails ? routeDetails.route : {},
+    if (
+      isInsufficientInformationAnswer(rawAnswer) &&
+      normalizeSiteFilterValue(selectedSiteFilter) !== SITE_FILTER_ALL
+    ) {
+      liveAssistant.remove();
+      addMessage("system", "Expanding search to all sites\u2026");
+      trackEvent("query_retried_all_sites", {
+        original_site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
+        query_length: query.length,
       });
-      trackEvent("cache_entry_stored", {
-        answer_length: rawAnswer.length,
-        source_count: sources.length,
-        cache_size: streamCacheSize,
-      });
-
-      const selectedIndex = routeDetails ? routeDetails.selectedIndex : "";
-      const routedCount = routeDetails
-        ? routeDetails.routedIndices.length || (routeDetails.selectedIndex ? 1 : 0)
-        : 0;
-      trackEvent("query_succeeded", {
-        selected_index: selectedIndex || "none",
-        routed_count: routedCount,
-        source_count: sources.length,
-        answer_length: answer.length,
-        site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
-        persona: selectedPersona,
-        response_mode: "stream",
-        duration_ms: toAnalyticsDurationMs(queryStartedAt),
-        submit_trigger: submitTrigger,
-      });
-      return;
+      liveAssistant = createLiveAssistantStream("", { metaType: "routing" });
+      queryResult = await executeQuery(query, SITE_FILTER_ALL, selectedPersona, liveAssistant);
+      rawAnswer = queryResult.rawAnswer;
+      sources = queryResult.sources;
+      routeDetails = queryResult.routeDetails;
+      responseMode = queryResult.responseMode;
+      retriedAllSites = true;
     }
 
-    const result = orchestratorResponse.result;
-    const route = result.route && typeof result.route === "object" ? result.route : {};
-    routeDetails = describeRoute(route);
-    renderRouteMessage(routeDetails, selectedSiteFilter);
-
-    const rawAnswer = String(result.answer || "").trim() || "(no answer field returned)";
     const answer = applyPersonaAnswerVoice(rawAnswer, selectedPersona);
-    const sources = Array.isArray(result.sources) ? result.sources : [];
+    liveAssistant.finalize(answer);
+
     const shouldShowSources = !isInsufficientInformationAnswer(rawAnswer);
     const sourcesMarkdown = shouldShowSources ? buildSourcesMarkdown(sources) : "";
-
-    liveAssistant.setMeta(routeDetails.answerMeta);
-    liveAssistant.finalize(answer);
     if (sourcesMarkdown) {
       addMessage("system", sourcesMarkdown.trim(), undefined, {
         renderMarkdown: true,
         disableAutoScroll: true,
       });
     }
-    const jsonCacheSize = setCachedResponse(query, selectedSiteFilter, selectedPersona, {
+
+    const cacheSize = setCachedResponse(query, selectedSiteFilter, selectedPersona, {
       answer: rawAnswer,
       sources,
-      route,
+      route: routeDetails ? routeDetails.route : {},
     });
     trackEvent("cache_entry_stored", {
       answer_length: rawAnswer.length,
       source_count: sources.length,
-      cache_size: jsonCacheSize,
+      cache_size: cacheSize,
     });
+
+    const selectedIndex = routeDetails ? routeDetails.selectedIndex : "";
+    const routedCount = routeDetails
+      ? routeDetails.routedIndices.length || (routeDetails.selectedIndex ? 1 : 0)
+      : 0;
     trackEvent("query_succeeded", {
-      selected_index: routeDetails.selectedIndex || "none",
-      routed_count: routeDetails.routedIndices.length || (routeDetails.selectedIndex ? 1 : 0),
+      selected_index: selectedIndex || "none",
+      routed_count: routedCount,
       source_count: sources.length,
       answer_length: answer.length,
       site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
       persona: selectedPersona,
-      response_mode: "json",
+      response_mode: responseMode,
+      retried_all_sites: retriedAllSites ? 1 : 0,
       duration_ms: toAnalyticsDurationMs(queryStartedAt),
       submit_trigger: submitTrigger,
     });
