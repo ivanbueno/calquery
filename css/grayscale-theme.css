@@ -27,6 +27,11 @@
   --teal-soft: #ffffff;
   --user: #ffffff;
 
+  --accent: #000000;
+  --message-assistant-accent: #000000;
+  --focus-glow: rgba(0, 0, 0, 0.1);
+  --grain-opacity: 0.015;
+
   --shell-shadow: rgba(0, 0, 0, 0.22);
   --header-gradient-start: #000000;
   --header-gradient-end: #000000;

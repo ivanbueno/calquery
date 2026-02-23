@@ -23,6 +23,11 @@
   --teal-soft: #3c3836;
   --user: #3c3836;
 
+  --accent: #83a598;
+  --message-assistant-accent: #83a598;
+  --focus-glow: rgba(131, 165, 152, 0.18);
+  --grain-opacity: 0.018;
+
   --shell-shadow: rgba(0, 0, 0, 0.45);
   --header-gradient-start: #1d2021;
   --header-gradient-end: #3c3836;
