@@ -870,14 +870,6 @@ function addMessage(role, text, metaText, options = {}) {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-function extractHostname(urlValue) {
-  try {
-    const parsed = new URL(urlValue, window.location.href);
-    return String(parsed.hostname || "").trim().replace(/^www\./i, "");
-  } catch (error) {
-    return "";
-  }
-}
 
 function trackChatOutboundLinkClick(event) {
   if (!(event.target instanceof Element)) {
@@ -895,7 +887,7 @@ function trackChatOutboundLinkClick(event) {
     return;
   }
   trackEvent("source_link_clicked", {
-    source_domain: extractHostname(href) || "unknown",
+    source_domain: getDisplayDomain(href) || "unknown",
     link_text_length: String(link.textContent || "").trim().length,
   });
 }
@@ -1589,11 +1581,12 @@ function isHttpUrl(value) {
 }
 
 function getDisplayDomain(url) {
-  if (!isHttpUrl(url)) {
-    return "";
-  }
   try {
-    const hostname = new URL(url).hostname.toLowerCase();
+    const parsed = new URL(String(url || "").trim(), window.location.href);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return "";
+    }
+    const hostname = parsed.hostname.toLowerCase();
     return hostname.startsWith("www.") ? hostname.slice(4) : hostname;
   } catch (error) {
     return "";
