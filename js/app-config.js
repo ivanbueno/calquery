@@ -1,5 +1,5 @@
 window.RAG_CHATBOT_CONFIG = {
-  "generated_at": "2026-02-23T08:40:33.268285+00:00",
+  "generated_at": "2026-02-23T22:29:06.429017+00:00",
   "orchestrator": {
     "function_name": "rag-chatbot-orchestrator-router",
     "function_url": "https://lsldyl7tiq4rd42dvukd4mrgtm0jcvmz.lambda-url.us-east-1.on.aws/"
@@ -10,9 +10,10 @@ window.RAG_CHATBOT_CONFIG = {
       "source_file": "jcc.csv",
       "function_name": "rag-chatbot-jcc",
       "function_url": "https://u356t5gvpkut2hghrdf3mwclwu0dhhim.lambda-url.us-east-1.on.aws/",
-      "description": "Index jcc: 3749 rows from jcc.csv. categories: Rules, Civil, Judge. primary host: courts.ca.gov. example topics: Learn your options; You were served divorce papers.",
+      "description": "Index jcc: 4258 rows from jcc.csv. categories: Rules, Civil, Judge. primary host: courts.ca.gov. example topics: Learn your options; You were served divorce papers.",
       "sites": [
         "Judicial Council",
+        "Newsroom",
         "Self Help"
       ],
       "sample_queries": [
