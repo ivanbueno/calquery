@@ -29,6 +29,8 @@ const toggleRoutingMeta = document.getElementById("toggleRoutingMeta");
 const themeSelect = document.getElementById("themeSelect");
 const siteSelect = document.getElementById("siteSelect");
 const personaSelect = document.getElementById("personaSelect");
+const personaRow = document.getElementById("personaRow");
+const personaToggle = document.getElementById("personaToggle");
 const clearCacheButton = document.getElementById("clearCacheButton");
 const brandLogo = document.querySelector(".brand-logo");
 const brandText = document.querySelector(".brand-text");
@@ -47,6 +49,7 @@ const ROUTING_META_STORAGE_KEY = "calquery-routing-meta-visible";
 const THEME_STORAGE_KEY = "calquery-theme";
 const SITE_FILTER_STORAGE_KEY = "calquery-site-filter";
 const PERSONA_STORAGE_KEY = "calquery-persona";
+const PERSONA_VISIBLE_STORAGE_KEY = "calquery-persona-visible";
 const THEME_DEFAULT = "default";
 const THEME_KANAGAWA = "kanagawa";
 const THEME_GRUVBOX_DARK = "gruvbox-dark";
@@ -442,6 +445,34 @@ function loadPersonaPreference() {
     saved = null;
   }
   setPersona(saved, { persist: false });
+}
+
+function setPersonaVisible(isVisible, options = {}) {
+  const shouldPersist = options.persist !== false;
+  if (personaRow) {
+    personaRow.hidden = !isVisible;
+  }
+  if (personaToggle) {
+    personaToggle.setAttribute("aria-pressed", String(isVisible));
+    personaToggle.classList.toggle("is-active", isVisible);
+  }
+  if (shouldPersist) {
+    try {
+      window.localStorage.setItem(PERSONA_VISIBLE_STORAGE_KEY, isVisible ? "1" : "0");
+    } catch (error) {
+      // Ignore storage failures.
+    }
+  }
+}
+
+function loadPersonaVisibility() {
+  let saved = null;
+  try {
+    saved = window.localStorage.getItem(PERSONA_VISIBLE_STORAGE_KEY);
+  } catch (error) {
+    saved = null;
+  }
+  setPersonaVisible(saved === "1", { persist: false });
 }
 
 function getSelectedPersona() {
@@ -1001,8 +1032,18 @@ function createLiveAssistantStream(metaText, options = {}) {
       return answerText;
     },
     remove() {
-      message.remove();
       finalized = true;
+      const height = message.offsetHeight;
+      message.style.overflow = 'hidden';
+      const anim = message.animate(
+        [
+          { opacity: 1, height: `${height}px`, paddingTop: '0.9rem', paddingBottom: '0.9rem' },
+          { opacity: 0, height: `${height}px`, paddingTop: '0.9rem', paddingBottom: '0.9rem', offset: 0.65 },
+          { opacity: 0, height: '0px', paddingTop: '0', paddingBottom: '0' },
+        ],
+        { duration: 750, easing: 'ease-in', fill: 'forwards' }
+      );
+      return anim.finished.then(() => message.remove());
     },
   };
 }
@@ -1251,6 +1292,7 @@ function loadThemePreference() {
 loadThemePreference();
 loadRoutingMetaPreference();
 loadPersonaPreference();
+loadPersonaVisibility();
 populateSiteFilterOptions();
 loadSiteFilterPreference();
 const queryStringSiteFilter = readSiteFilterFromQueryString();
@@ -1386,6 +1428,13 @@ if (personaSelect) {
   personaSelect.addEventListener("change", (event) => {
     const selectedPersona = setPersona(event.target.value);
     trackEvent("persona_toggled", { persona: selectedPersona });
+  });
+}
+
+if (personaToggle) {
+  personaToggle.addEventListener("click", () => {
+    const isCurrentlyVisible = personaRow ? !personaRow.hidden : false;
+    setPersonaVisible(!isCurrentlyVisible);
   });
 }
 
@@ -2004,8 +2053,8 @@ composer.addEventListener("submit", async (event) => {
       isInsufficientInformationAnswer(rawAnswer) &&
       normalizeSiteFilterValue(selectedSiteFilter) !== SITE_FILTER_ALL
     ) {
-      liveAssistant.remove();
-      addMessage("system", "Expanding search to all sites\u2026");
+      await liveAssistant.remove();
+      addMessage("system", "Not enough information found. Expanding search to all sites\u2026");
       trackEvent("query_retried_all_sites", {
         original_site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
         query_length: query.length,
