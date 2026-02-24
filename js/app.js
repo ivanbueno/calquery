@@ -117,6 +117,8 @@ const STARTER_QUERY_MESSAGE_DELAY_MS = 2000;
 const STARTER_MESSAGE_DELAY_MS = 500;
 const STARTER_FOLLOWUP_MESSAGE_DELAY_MS = 1000;
 const STARTER_QUERY_DISPLAY_COUNT = 3;
+const FEEDBACK_RATING_UP = "up";
+const FEEDBACK_RATING_DOWN = "down";
 const INSUFFICIENT_INFORMATION_PATTERN = new RegExp(
   [
     // "(not | don't) have" + "enough / sufficient / adequate" + "information"
@@ -985,6 +987,7 @@ function createLiveAssistantStream(metaText, options = {}) {
   let answerText = "";
   let finalized = false;
   let metaNode = null;
+  let feedbackNode = null;
 
   function ensureMetaNode() {
     if (metaNode) {
@@ -1009,6 +1012,18 @@ function createLiveAssistantStream(metaText, options = {}) {
       return;
     }
     ensureMetaNode().textContent = normalized;
+  }
+
+  function setFeedback(nextFeedbackContext) {
+    if (feedbackNode) {
+      feedbackNode.remove();
+      feedbackNode = null;
+    }
+    if (!nextFeedbackContext || typeof nextFeedbackContext !== "object") {
+      return;
+    }
+    feedbackNode = createFeedbackControls(nextFeedbackContext);
+    message.appendChild(feedbackNode);
   }
 
   function renderTypingDots() {
@@ -1054,6 +1069,7 @@ function createLiveAssistantStream(metaText, options = {}) {
       return answerText;
     },
     setMeta,
+    setFeedback,
     getText() {
       return answerText;
     },
@@ -1772,6 +1788,247 @@ function buildSourcesMarkdown(sources) {
   return `\n\n### Sources\n${lines.join("\n")}`;
 }
 
+function toFeedbackSiteFilter(siteValue) {
+  const normalizedSite = normalizeSiteFilterValue(siteValue);
+  return normalizedSite === SITE_FILTER_ALL ? "all" : normalizedSite;
+}
+
+function generateFeedbackId() {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return window.crypto.randomUUID();
+  }
+  const randomSuffix = Math.random().toString(16).slice(2, 12);
+  return `feedback-${Date.now()}-${randomSuffix}`;
+}
+
+function collectFeedbackSourceSites(sources) {
+  const uniqueByKey = new Map();
+  if (!Array.isArray(sources)) {
+    return [];
+  }
+
+  for (const source of sources) {
+    if (!source || typeof source !== "object") {
+      continue;
+    }
+    const site = String(source.site || "").trim();
+    if (!site) {
+      continue;
+    }
+    const siteKey = site.toLowerCase();
+    if (!uniqueByKey.has(siteKey)) {
+      uniqueByKey.set(siteKey, site);
+    }
+  }
+  return Array.from(uniqueByKey.values()).slice(0, 32);
+}
+
+function collectFeedbackSourceUrls(sources) {
+  const seen = new Set();
+  const urls = [];
+  if (!Array.isArray(sources)) {
+    return urls;
+  }
+  for (const source of sources) {
+    if (!source || typeof source !== "object") {
+      continue;
+    }
+    const url = String(source.url || "").trim();
+    if (!isHttpUrl(url)) {
+      continue;
+    }
+    if (seen.has(url)) {
+      continue;
+    }
+    seen.add(url);
+    urls.push(url);
+    if (urls.length >= 32) {
+      break;
+    }
+  }
+  return urls;
+}
+
+function buildFeedbackContext({
+  query,
+  answer,
+  sources,
+  routeDetails,
+  requestedSiteFilter,
+  effectiveSiteFilter,
+  responseMode,
+  retriedAllSites,
+  persona,
+}) {
+  const normalizedRouteDetails = routeDetails && typeof routeDetails === "object" ? routeDetails : {};
+  const routedIndices = Array.isArray(normalizedRouteDetails.routedIndices)
+    ? normalizedRouteDetails.routedIndices.map((value) => String(value || "").trim()).filter(Boolean)
+    : [];
+  return {
+    feedback_id: generateFeedbackId(),
+    question: String(query || "").trim(),
+    answer: String(answer || "").trim(),
+    requested_site_filter: toFeedbackSiteFilter(requestedSiteFilter),
+    effective_site_filter: toFeedbackSiteFilter(effectiveSiteFilter),
+    selected_index: String(normalizedRouteDetails.selectedIndex || "").trim(),
+    route_indices: routedIndices,
+    source_sites: collectFeedbackSourceSites(sources),
+    source_urls: collectFeedbackSourceUrls(sources),
+    source_count: Array.isArray(sources) ? sources.length : 0,
+    response_mode: String(responseMode || "").trim() || "unknown",
+    retried_all_sites: Boolean(retriedAllSites),
+    answer_length: String(answer || "").trim().length,
+    answer_created_at: new Date().toISOString(),
+    persona: normalizePersonaName(persona),
+  };
+}
+
+async function submitAnswerFeedback(feedbackPayload) {
+  if (!orchestratorUrl) {
+    throw new Error("Missing orchestrator function URL.");
+  }
+
+  const response = await fetch(orchestratorUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "feedback",
+      feedback: feedbackPayload,
+    }),
+  });
+
+  const text = await response.text();
+  const payload = tryParseJsonResponse(text);
+  const normalized = parseLambdaPayload(payload);
+  if (!response.ok) {
+    const errorMessage = normalized && typeof normalized === "object"
+      ? String(normalized.error || normalized.message || "")
+      : "";
+    throw new Error(errorMessage || `Feedback request failed (${response.status}).`);
+  }
+  if (!normalized || typeof normalized !== "object") {
+    throw new Error("Unexpected feedback response.");
+  }
+  if (normalized.ok !== true) {
+    const errorMessage = String(normalized.error || normalized.message || "");
+    throw new Error(errorMessage || "Feedback was not accepted.");
+  }
+  return normalized;
+}
+
+function createFeedbackIcon(rating) {
+  const icon = document.createElement("span");
+  icon.className = `feedback-icon feedback-icon-${rating}`;
+  icon.setAttribute("aria-hidden", "true");
+
+  if (rating === FEEDBACK_RATING_UP) {
+    icon.innerHTML =
+      '<svg viewBox="0 0 24 24" role="img" focusable="false"><path d="M1 21h4V9H1v12zM23 10c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14 1 7.59 7.41C7.22 7.78 7 8.3 7 8.83V19c0 1.1.9 2 2 2h9c.82 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"></path></svg>';
+    return icon;
+  }
+
+  icon.innerHTML =
+    '<svg viewBox="0 0 24 24" role="img" focusable="false"><path d="M15 3H6c-.82 0-1.54.5-1.84 1.22L1.14 11.27c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L10 23l6.41-6.41c.37-.37.59-.89.59-1.42V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"></path></svg>';
+  return icon;
+}
+
+function createFeedbackControls(feedbackContext) {
+  const controls = document.createElement("div");
+  controls.className = "answer-feedback";
+
+  const label = document.createElement("span");
+  label.className = "answer-feedback-label";
+  label.textContent = "Was this answer helpful?";
+  controls.appendChild(label);
+
+  const upButton = document.createElement("button");
+  upButton.type = "button";
+  upButton.className = "feedback-button feedback-up";
+  upButton.appendChild(createFeedbackIcon(FEEDBACK_RATING_UP));
+  upButton.setAttribute("title", "Thumbs up");
+  upButton.setAttribute("aria-label", "Submit thumbs up feedback");
+
+  const downButton = document.createElement("button");
+  downButton.type = "button";
+  downButton.className = "feedback-button feedback-down";
+  downButton.appendChild(createFeedbackIcon(FEEDBACK_RATING_DOWN));
+  downButton.setAttribute("title", "Thumbs down");
+  downButton.setAttribute("aria-label", "Submit thumbs down feedback");
+
+  const status = document.createElement("span");
+  status.className = "answer-feedback-status";
+  status.setAttribute("aria-live", "polite");
+
+  controls.appendChild(upButton);
+  controls.appendChild(downButton);
+  controls.appendChild(status);
+
+  let selectedRating = "";
+  let isSubmitting = false;
+
+  function refreshButtons() {
+    upButton.classList.toggle("is-selected", selectedRating === FEEDBACK_RATING_UP);
+    downButton.classList.toggle("is-selected", selectedRating === FEEDBACK_RATING_DOWN);
+    upButton.setAttribute("aria-pressed", selectedRating === FEEDBACK_RATING_UP ? "true" : "false");
+    downButton.setAttribute("aria-pressed", selectedRating === FEEDBACK_RATING_DOWN ? "true" : "false");
+    upButton.disabled = isSubmitting || !orchestratorUrl;
+    downButton.disabled = isSubmitting || !orchestratorUrl;
+  }
+
+  async function handleFeedbackSubmit(rating) {
+    if (isSubmitting || selectedRating === rating) {
+      return;
+    }
+    isSubmitting = true;
+    status.classList.remove("is-error");
+    status.textContent = "Saving...";
+    refreshButtons();
+
+    try {
+      await submitAnswerFeedback({
+        ...feedbackContext,
+        rating,
+      });
+      selectedRating = rating;
+      status.textContent = "Saved.";
+      trackEvent("answer_feedback_submitted", {
+        rating,
+        source_count: Number(feedbackContext.source_count) || 0,
+        response_mode: feedbackContext.response_mode || "unknown",
+        site_filter: feedbackContext.effective_site_filter || "unknown",
+      });
+      window.setTimeout(() => {
+        if (!isSubmitting && status.textContent === "Saved.") {
+          status.textContent = "";
+        }
+      }, 2400);
+    } catch (error) {
+      status.classList.add("is-error");
+      status.textContent = "Could not save feedback.";
+      trackEvent("answer_feedback_failed", {
+        rating,
+        response_mode: feedbackContext.response_mode || "unknown",
+      });
+    } finally {
+      isSubmitting = false;
+      refreshButtons();
+    }
+  }
+
+  upButton.addEventListener("click", () => {
+    void handleFeedbackSubmit(FEEDBACK_RATING_UP);
+  });
+  downButton.addEventListener("click", () => {
+    void handleFeedbackSubmit(FEEDBACK_RATING_DOWN);
+  });
+
+  if (!orchestratorUrl) {
+    status.textContent = "Feedback unavailable.";
+  }
+  refreshButtons();
+  return controls;
+}
+
 function isInsufficientInformationAnswer(answer) {
   const normalized = String(answer || "")
     .toLowerCase()
@@ -2080,6 +2337,26 @@ composer.addEventListener("submit", async (event) => {
 
       liveAssistant.setMeta(routeDetails.answerMeta);
       liveAssistant.finalize(answer);
+      const cachedRouteSite = routeDetails.route && typeof routeDetails.route === "object"
+        ? String(routeDetails.route.site || "").trim()
+        : "";
+      const cachedRetriedAllSites = normalizeSiteFilterValue(selectedSiteFilter) !== SITE_FILTER_ALL && !cachedRouteSite;
+      const cachedEffectiveSiteFilter = cachedRetriedAllSites
+        ? SITE_FILTER_ALL
+        : cachedRouteSite || selectedSiteFilter;
+      liveAssistant.setFeedback(
+        buildFeedbackContext({
+          query,
+          answer,
+          sources,
+          routeDetails,
+          requestedSiteFilter: selectedSiteFilter,
+          effectiveSiteFilter: cachedEffectiveSiteFilter,
+          responseMode: "cache",
+          retriedAllSites: cachedRetriedAllSites,
+          persona: selectedPersona,
+        })
+      );
       if (sourcesMarkdown) {
         addMessage("system", sourcesMarkdown.trim(), undefined, {
           renderMarkdown: true,
@@ -2130,6 +2407,20 @@ composer.addEventListener("submit", async (event) => {
 
     const answer = applyPersonaAnswerVoice(rawAnswer, selectedPersona);
     liveAssistant.finalize(answer);
+    const effectiveSiteFilter = retriedAllSites ? SITE_FILTER_ALL : selectedSiteFilter;
+    liveAssistant.setFeedback(
+      buildFeedbackContext({
+        query,
+        answer,
+        sources,
+        routeDetails,
+        requestedSiteFilter: selectedSiteFilter,
+        effectiveSiteFilter,
+        responseMode,
+        retriedAllSites,
+        persona: selectedPersona,
+      })
+    );
 
     const shouldShowSources = !isInsufficientInformationAnswer(rawAnswer);
     const sourcesMarkdown = shouldShowSources ? buildSourcesMarkdown(sources) : "";
