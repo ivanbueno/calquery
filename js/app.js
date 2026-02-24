@@ -32,6 +32,7 @@ const personaSelect = document.getElementById("personaSelect");
 const personaRow = document.getElementById("personaRow");
 const personaToggle = document.getElementById("personaToggle");
 const clearCacheButton = document.getElementById("clearCacheButton");
+const showInsufficientCheckbox = document.getElementById("showInsufficientCheckbox");
 const brandLogo = document.querySelector(".brand-logo");
 const brandText = document.querySelector(".brand-text");
 const brandTitle = document.querySelector(".brand-text h1");
@@ -46,6 +47,7 @@ let starterFollowupTimeoutId = null;
 let starterQueryTimeoutId = null;
 const ROUTING_META_HIDDEN_CLASS = "hide-routing-meta";
 const ROUTING_META_STORAGE_KEY = "calquery-routing-meta-visible";
+const SHOW_INSUFFICIENT_STORAGE_KEY = "calquery-show-insufficient";
 const THEME_STORAGE_KEY = "calquery-theme";
 const SITE_FILTER_STORAGE_KEY = "calquery-site-filter";
 const PERSONA_STORAGE_KEY = "calquery-persona";
@@ -151,6 +153,10 @@ const INSUFFICIENT_INFORMATION_PATTERN = new RegExp(
     "(?:is|are|was|were)\\s+not\\s+explicitly\\s+(?:mentioned|stated|covered)",
     // "additional / more information may/is + required / needed"
     "(?:additional|more)\\s+information\\s+(?:may\\s+be|is)\\s+(?:required|needed)",
+    // "cannot / can't / unable to / could not" + "provide" + "the information [you] requested / asked for"
+    "(?:cannot|can't|unable\\s+to|could\\s+not)\\s+provide\\s+(?:the\\s+)?information\\s+(?:you\\s+)?(?:requested|asked\\s+for)",
+    // "evidence [provided/presented/submitted/available]" + "does not / doesn't / did not" + "contain"
+    "evidence\\s+(?:(?:provided|presented|submitted|available)\\s+)?(?:does\\s+not|doesn't|did\\s+not)\\s+contain",
   ].join("|"),
   "i"
 );
@@ -1177,6 +1183,28 @@ function setRoutingMetaVisibility(isVisible) {
   }
 }
 
+function setShowInsufficient(value) {
+  const show = Boolean(value);
+  if (showInsufficientCheckbox && showInsufficientCheckbox.checked !== show) {
+    showInsufficientCheckbox.checked = show;
+  }
+  try {
+    window.localStorage.setItem(SHOW_INSUFFICIENT_STORAGE_KEY, show ? "1" : "0");
+  } catch (error) {
+    // Ignore storage failures in private mode or restricted environments.
+  }
+}
+
+function loadShowInsufficientPreference() {
+  let saved = null;
+  try {
+    saved = window.localStorage.getItem(SHOW_INSUFFICIENT_STORAGE_KEY);
+  } catch (error) {
+    saved = null;
+  }
+  setShowInsufficient(saved === "1");
+}
+
 function normalizeThemeName(themeName) {
   if (typeof themeName !== "string") {
     return THEME_DEFAULT;
@@ -1309,6 +1337,7 @@ function loadThemePreference() {
 
 loadThemePreference();
 loadRoutingMetaPreference();
+loadShowInsufficientPreference();
 loadPersonaPreference();
 loadPersonaVisibility();
 populateSiteFilterOptions();
@@ -1432,6 +1461,12 @@ if (toggleRoutingMeta) {
     trackEvent("routing_meta_toggled", {
       visible: event.target.checked ? 1 : 0,
     });
+  });
+}
+
+if (showInsufficientCheckbox) {
+  showInsufficientCheckbox.addEventListener("change", (event) => {
+    setShowInsufficient(event.target.checked);
   });
 }
 
@@ -2071,8 +2106,13 @@ composer.addEventListener("submit", async (event) => {
       isInsufficientInformationAnswer(rawAnswer) &&
       normalizeSiteFilterValue(selectedSiteFilter) !== SITE_FILTER_ALL
     ) {
-      await liveAssistant.remove();
-      addMessage("system", "Not enough information found. Expanding search to all sites\u2026");
+      if (showInsufficientCheckbox && showInsufficientCheckbox.checked) {
+        liveAssistant.finalize(applyPersonaAnswerVoice(rawAnswer, selectedPersona));
+        addMessage("system", "Expanding search to all sites\u2026");
+      } else {
+        await liveAssistant.remove();
+        addMessage("system", "Not enough information found. Expanding search to all sites\u2026");
+      }
       trackEvent("query_retried_all_sites", {
         original_site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
         query_length: query.length,
