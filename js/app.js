@@ -2133,6 +2133,59 @@ const starterSystemMessage = routes.length
     : "Missing orchestrator URL in app-config.js. Re-run launch."
   : "No hardcoded routes found. Run launch to generate app-config.js.";
 
+function addSitePickerMessage() {
+  const message = document.createElement("article");
+  message.className = "message system";
+
+  const textNode = document.createElement("div");
+  textNode.className = "content";
+
+  const intro = document.createElement("p");
+  intro.textContent = "Choose your primary site:";
+  textNode.appendChild(intro);
+
+  const pillContainer = document.createElement("div");
+  pillContainer.className = "site-picker-pills";
+
+  function updateActivePills(selectedSite) {
+    pillContainer.querySelectorAll(".site-pill").forEach((pill) => {
+      pill.classList.toggle("is-active", pill.dataset.siteValue === selectedSite);
+    });
+  }
+
+  function createPill(siteValue, label) {
+    const pill = document.createElement("button");
+    pill.type = "button";
+    pill.className = "site-pill";
+    pill.textContent = label;
+    pill.dataset.siteValue = siteValue;
+    pill.addEventListener("click", () => {
+      const selected = setSiteFilter(siteValue);
+      syncSiteFilterQueryString(selected);
+      updateActivePills(selected);
+      trackEvent("site_filter_toggled", {
+        site: toAnalyticsSiteFilter(selected),
+        trigger: "site_picker_pill",
+      });
+    });
+    return pill;
+  }
+
+  const allSites = [SITE_FILTER_ALL, ...AVAILABLE_SITE_FILTERS];
+  for (const siteValue of allSites) {
+    const label = siteValue === SITE_FILTER_ALL ? "All Sites" : siteValue;
+    pillContainer.appendChild(createPill(siteValue, label));
+  }
+
+  textNode.appendChild(pillContainer);
+  message.appendChild(textNode);
+  chatLog.appendChild(message);
+  chatLog.scrollTop = chatLog.scrollHeight;
+
+  // Reflect the current selection once the message is rendered.
+  updateActivePills(getSelectedSiteFilter());
+}
+
 if (routes.length && orchestratorUrl) {
   starterMessageTimeoutId = window.setTimeout(() => {
     starterMessageTimeoutId = null;
@@ -2145,10 +2198,7 @@ if (routes.length && orchestratorUrl) {
       if (userHasSubmittedQuery) {
         return;
       }
-      addMessage(
-        "system",
-        "CalQuery connects your questions to trusted court information and official self-help resources."
-      );
+      addSitePickerMessage();
     }, STARTER_FOLLOWUP_MESSAGE_DELAY_MS);
   }, STARTER_MESSAGE_DELAY_MS);
 } else {
