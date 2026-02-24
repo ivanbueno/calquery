@@ -179,7 +179,8 @@ const STARTER_QUERIES = [
   "What forms do I need for name change?",
   "What are the new laws for 2026?",
   "Give me links to the support calculators and their certification status.",
-  "List all past and present chief justices."
+  "List all past and present chief justices.",
+  "What is the difference between a published and unpublished opinion?"
 ];
 
 if (footerYear) {
