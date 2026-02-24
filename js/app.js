@@ -135,6 +135,12 @@ const INSUFFICIENT_INFORMATION_PATTERN = new RegExp(
     "(?:lack|missing)\\s+(?:the\\s+)?(?:information|details|specifics)",
     // "no information about / on / regarding"
     "no\\s+information\\s+(?:about|on|regarding)",
+    // "information provided does not specify"
+    "information\\s+provided\\s+does\\s+not\\s+specify",
+    // "need / needs / require / requires more specific information / details / context / data"
+    "(?:need|needs|require|requires)\\s+more\\s+specific\\s+(?:information|details|context|data)",
+    // "[please] provide additional/more context/sources/details/information"
+    "(?:please\\s+)?provide\\s+(?:additional|more)\\s+(?:context|sources?|details|information)",
   ].join("|"),
   "i"
 );
@@ -154,7 +160,9 @@ const STARTER_QUERIES = [
   "What deadlines apply after filing an appeal and what steps come next?",
   "What is the difference between mediation, arbitration, and going to trial?",
   "How do I challenge evidence or object during a court proceeding?",
-  "What forms do I need for name change?"
+  "What forms do I need for name change?",
+  "What are the new laws for 2026?",
+  "Give me links to the support calculators and their certification status."
 ];
 
 if (footerYear) {
