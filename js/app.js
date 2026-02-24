@@ -1990,7 +1990,7 @@ function createFeedbackControls(feedbackContext) {
         rating,
       });
       selectedRating = rating;
-      status.textContent = "Saved.";
+      status.textContent = "Thank you for your feedback.";
       trackEvent("answer_feedback_submitted", {
         rating,
         source_count: Number(feedbackContext.source_count) || 0,
@@ -1998,7 +1998,7 @@ function createFeedbackControls(feedbackContext) {
         site_filter: feedbackContext.effective_site_filter || "unknown",
       });
       window.setTimeout(() => {
-        if (!isSubmitting && status.textContent === "Saved.") {
+        if (!isSubmitting && status.textContent === "Thank you for your feedback.") {
           status.textContent = "";
         }
       }, 2400);
