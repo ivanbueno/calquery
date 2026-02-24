@@ -143,6 +143,10 @@ const INSUFFICIENT_INFORMATION_PATTERN = new RegExp(
     "(?:please\\s+)?provide\\s+(?:additional|more)\\s+(?:context|sources?|details|information)",
     // "evidence is insufficient / inadequate / not sufficient / not enough" OR "insufficient evidence"
     "(?:evidence\\s+is\\s+(?:insufficient|inadequate|not\\s+(?:sufficient|enough))|insufficient\\s+evidence)",
+    // "information is insufficient / inadequate / not sufficient / not enough"
+    "information\\s+is\\s+(?:insufficient|inadequate|not\\s+(?:sufficient|enough))",
+    // "does not / doesn't / did not" + "specifically / directly" + "address"
+    "(?:does\\s+not|doesn't|did\\s+not)\\s+(?:specifically|directly)\\s+address",
   ].join("|"),
   "i"
 );
