@@ -1354,6 +1354,14 @@ button:disabled {
     border-radius: 0;
   }
 
+  /* When the textarea is focused on mobile, the keyboard opens and the browser
+     auto-scrolls the body to reveal the input. Hide the info panel (which is
+     below the fold anyway) so there is no scroll target and the composer stays
+     visible above the keyboard. */
+  .chat-shell:focus-within ~ .info {
+    display: none;
+  }
+
   .info {
     width: auto;
     margin: 0.72rem 0.45rem 0;

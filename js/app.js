@@ -2163,6 +2163,22 @@ starterQueryTimeoutId = window.setTimeout(() => {
   addStarterQueryMessage(STARTER_QUERIES);
 }, STARTER_QUERY_MESSAGE_DELAY_MS);
 
+// Mobile: lock body scroll while the composer textarea is focused so the
+// browser cannot scroll the page when the keyboard opens. Without this, the
+// browser auto-scrolls to reveal the input, which brings the info accordion
+// into view and visually pushes the textarea off-screen.
+if (queryInput) {
+  queryInput.addEventListener("focus", () => {
+    if (window.innerWidth <= INFO_ACCORDION_MOBILE_BREAKPOINT_PX) {
+      window.scrollTo({ top: 0, behavior: "instant" });
+      document.body.style.overflowY = "hidden";
+    }
+  });
+  queryInput.addEventListener("blur", () => {
+    document.body.style.overflowY = "";
+  });
+}
+
 trackEvent("app_loaded", {
   route_count: routes.length,
   has_orchestrator: orchestratorUrl ? 1 : 0,
