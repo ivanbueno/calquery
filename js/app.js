@@ -144,7 +144,7 @@ const INSUFFICIENT_INFORMATION_PATTERN = new RegExp(
     // "need / needs / require / requires more specific information / details / context / data"
     "(?:need|needs|require|requires)\\s+more\\s+specific\\s+(?:information|details|context|data)",
     // "[please] provide additional/more context/sources/details/information"
-    "(?:please\\s+)?provide\\s+(?:additional|more)\\s+(?:context|sources?|details|information)",
+    //"(?:please\\s+)?provide\\s+(?:additional|more)\\s+(?:context|sources?|details|information)",
     // "evidence is insufficient / inadequate / not sufficient / not enough" OR "insufficient evidence"
     "(?:evidence\\s+is\\s+(?:insufficient|inadequate|not\\s+(?:sufficient|enough))|insufficient\\s+evidence)",
     // "information is insufficient / inadequate / not sufficient / not enough"
@@ -154,7 +154,7 @@ const INSUFFICIENT_INFORMATION_PATTERN = new RegExp(
     // "is / are / was / were not explicitly mentioned / stated / covered"
     "(?:is|are|was|were)\\s+not\\s+explicitly\\s+(?:mentioned|stated|covered)",
     // "additional / more information may/is + required / needed"
-    "(?:additional|more)\\s+information\\s+(?:may\\s+be|is)\\s+(?:required|needed)",
+    //"(?:additional|more)\\s+information\\s+(?:may\\s+be|is)\\s+(?:required|needed)",
     // "cannot / can't / unable to / could not" + "provide" + "the information [you] requested / asked for"
     "(?:cannot|can't|unable\\s+to|could\\s+not)\\s+provide\\s+(?:the\\s+)?information\\s+(?:you\\s+)?(?:requested|asked\\s+for)",
     // "evidence [provided/presented/submitted/available]" + "does not / doesn't / did not" + "contain"
