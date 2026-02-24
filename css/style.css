@@ -1458,7 +1458,7 @@ button:disabled {
   }
 
   .info-accordion-content {
-    padding: 0 0 0.78rem;
+    padding: 0 0 0.78rem 0.7rem;
     gap: 0.48rem;
   }
 
