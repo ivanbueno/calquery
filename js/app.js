@@ -1497,6 +1497,9 @@ if (toggleRoutingMeta) {
 if (showInsufficientCheckbox) {
   showInsufficientCheckbox.addEventListener("change", (event) => {
     setShowInsufficient(event.target.checked);
+    trackEvent("show_insufficient_toggled", {
+      show: event.target.checked ? 1 : 0,
+    });
   });
 }
 
@@ -2270,7 +2273,12 @@ async function requestOrchestrator(query, siteFilter, persona, handlers = {}) {
 
   const contentType = String(response.headers.get("content-type") || "").toLowerCase();
   if (contentType.includes("text/event-stream") && response.body) {
-    const streamResult = await consumeOrchestratorEventStream(response.body, handlers);
+    let streamResult;
+    try {
+      streamResult = await consumeOrchestratorEventStream(response.body, handlers);
+    } catch (error) {
+      throw normalizeFetchRequestError(error, orchestratorUrl);
+    }
     return { mode: "stream", result: streamResult };
   }
 
