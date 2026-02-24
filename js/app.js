@@ -147,6 +147,10 @@ const INSUFFICIENT_INFORMATION_PATTERN = new RegExp(
     "information\\s+is\\s+(?:insufficient|inadequate|not\\s+(?:sufficient|enough))",
     // "does not / doesn't / did not" + "specifically / directly" + "address"
     "(?:does\\s+not|doesn't|did\\s+not)\\s+(?:specifically|directly)\\s+address",
+    // "is / are / was / were not explicitly mentioned / stated / covered"
+    "(?:is|are|was|were)\\s+not\\s+explicitly\\s+(?:mentioned|stated|covered)",
+    // "additional / more information may/is + required / needed"
+    "(?:additional|more)\\s+information\\s+(?:may\\s+be|is)\\s+(?:required|needed)",
   ].join("|"),
   "i"
 );
