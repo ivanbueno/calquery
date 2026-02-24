@@ -636,6 +636,18 @@ function classifyErrorType(error) {
   if (!message) {
     return "unknown";
   }
+  if (message.includes("could not reach the chatbot service") || message.includes("failed to fetch")) {
+    return "network_unreachable";
+  }
+  if (message.includes("network appears offline")) {
+    return "network_offline";
+  }
+  if (message.includes("blocked insecure request")) {
+    return "mixed_content_blocked";
+  }
+  if (message.includes("timed out")) {
+    return "timeout";
+  }
   if (message.includes("missing orchestrator")) {
     return "missing_orchestrator";
   }
@@ -1606,6 +1618,66 @@ function tryParseJsonResponse(text) {
   }
 }
 
+function isLikelyNetworkFetchError(error) {
+  const message = String((error && error.message) || error || "")
+    .trim()
+    .toLowerCase();
+  if (!message) {
+    return false;
+  }
+  return (
+    message.includes("failed to fetch") ||
+    message.includes("networkerror when attempting to fetch resource") ||
+    message.includes("network error") ||
+    message.includes("load failed")
+  );
+}
+
+function isMixedContentRequest(orchestratorRequestUrl) {
+  try {
+    const pageProtocol = String(window.location.protocol || "").toLowerCase();
+    const targetProtocol = String(
+      new URL(String(orchestratorRequestUrl || "").trim(), window.location.href).protocol || ""
+    ).toLowerCase();
+    return pageProtocol === "https:" && targetProtocol === "http:";
+  } catch (_error) {
+    return false;
+  }
+}
+
+function buildNetworkFetchErrorMessage(orchestratorRequestUrl) {
+  if (typeof navigator === "object" && navigator && navigator.onLine === false) {
+    return "Network appears offline. Reconnect to the internet and try again.";
+  }
+  if (isMixedContentRequest(orchestratorRequestUrl)) {
+    return (
+      "Blocked insecure request: this page uses HTTPS, but the orchestrator URL is HTTP. " +
+      "Update app-config.js to use an HTTPS Function URL."
+    );
+  }
+
+  const endpoint = getDisplayDomain(orchestratorRequestUrl);
+  const endpointLabel = endpoint ? ` (${endpoint})` : "";
+  return (
+    `Could not reach the chatbot service${endpointLabel}. ` +
+    "Check VPN/firewall/ad blockers, then retry. " +
+    "If it persists, verify Function URL CORS allow-origins includes this site."
+  );
+}
+
+function normalizeFetchRequestError(error, orchestratorRequestUrl) {
+  if (error && error.name === "AbortError") {
+    return new Error("The request timed out. Please try again.");
+  }
+  if (isLikelyNetworkFetchError(error)) {
+    return new Error(buildNetworkFetchErrorMessage(orchestratorRequestUrl));
+  }
+  if (error instanceof Error) {
+    return error;
+  }
+  return new Error(String(error || "Request failed."));
+}
+
 function parseSseBlock(blockText) {
   const lines = String(blockText || "").split("\n");
   let eventType = "message";
@@ -1888,14 +1960,19 @@ async function submitAnswerFeedback(feedbackPayload) {
     throw new Error("Missing orchestrator function URL.");
   }
 
-  const response = await fetch(orchestratorUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action: "feedback",
-      feedback: feedbackPayload,
-    }),
-  });
+  let response = null;
+  try {
+    response = await fetch(orchestratorUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "feedback",
+        feedback: feedbackPayload,
+      }),
+    });
+  } catch (error) {
+    throw normalizeFetchRequestError(error, orchestratorUrl);
+  }
 
   const text = await response.text();
   const payload = tryParseJsonResponse(text);
@@ -2173,11 +2250,16 @@ async function requestOrchestrator(query, siteFilter, persona, handlers = {}) {
   }
   requestPayload.persona = selectedPersona;
 
-  const response = await fetch(orchestratorUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(requestPayload),
-  });
+  let response = null;
+  try {
+    response = await fetch(orchestratorUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestPayload),
+    });
+  } catch (error) {
+    throw normalizeFetchRequestError(error, orchestratorUrl);
+  }
 
   if (!response.ok) {
     const text = await response.text();
