@@ -178,7 +178,8 @@ const STARTER_QUERIES = [
   "How do I challenge evidence or object during a court proceeding?",
   "What forms do I need for name change?",
   "What are the new laws for 2026?",
-  "Give me links to the support calculators and their certification status."
+  "Give me links to the support calculators and their certification status.",
+  "List all past and present chief justices."
 ];
 
 if (footerYear) {
