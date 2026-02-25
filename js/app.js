@@ -119,7 +119,7 @@ const STARTER_FOLLOWUP_MESSAGE_DELAY_MS = 1000;
 const STARTER_QUERY_DISPLAY_COUNT = 3;
 const FEEDBACK_RATING_UP = "up";
 const FEEDBACK_RATING_DOWN = "down";
-const INSUFFICIENT_MARKER = "[INSUFFICIENT]";
+const INSUFFICIENT_MARKER = "⚖";
 const INSUFFICIENT_INFORMATION_PATTERN = new RegExp(
   [
     // "(not | don't) have" + "enough / sufficient / adequate" + "information"
