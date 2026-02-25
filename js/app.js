@@ -179,7 +179,6 @@ const STARTER_QUERIES = [
   "What is the difference between civil and criminal court?",
   "How do I prepare for a court hearing?",
   "What documents do I need to start a case?",
-  "What happens if I miss a court deadline?",
   "How do court filing fees work?",
   "What does \"motion\" mean in court?",
   "What deadlines apply after filing an appeal and what steps come next?",
