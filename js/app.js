@@ -936,6 +936,9 @@ function createMessageElements(role, metaText, options = {}) {
   if (options.messageType === "routing-system") {
     message.classList.add("routing-system-message");
   }
+  if (options.messageType === "sources") {
+    message.classList.add("sources-message");
+  }
 
   const textNode = document.createElement("div");
   textNode.className = "content";
@@ -954,6 +957,17 @@ function createMessageElements(role, metaText, options = {}) {
   return { message, textNode };
 }
 
+function findPreviousAssistantMessage(startNode) {
+  let current = startNode ? startNode.previousElementSibling : null;
+  while (current) {
+    if (current.classList.contains("message") && current.classList.contains("assistant")) {
+      return current;
+    }
+    current = current.previousElementSibling;
+  }
+  return null;
+}
+
 function addMessage(role, text, metaText, options = {}) {
   const { message, textNode } = createMessageElements(role, metaText, options);
   if (role === "assistant" || options.renderMarkdown === true) {
@@ -963,6 +977,12 @@ function addMessage(role, text, metaText, options = {}) {
   }
 
   chatLog.appendChild(message);
+  if (options.messageType === "sources") {
+    const previousAssistant = findPreviousAssistantMessage(message);
+    if (previousAssistant) {
+      previousAssistant.classList.add("assistant-with-sources-shelf");
+    }
+  }
   if (role === "assistant") {
     alignAssistantMessage(message);
     return;
@@ -2024,7 +2044,7 @@ function createFeedbackControls(feedbackContext) {
 
   const label = document.createElement("span");
   label.className = "answer-feedback-label";
-  label.textContent = "Was this answer helpful?";
+  label.textContent = "Was this helpful?";
   controls.appendChild(label);
 
   const upButton = document.createElement("button");
@@ -2432,7 +2452,8 @@ composer.addEventListener("submit", async (event) => {
       const rawAnswer = String(cached.answer || "").trim() || "(no answer field returned)";
       const answer = applyPersonaAnswerVoice(rawAnswer, selectedPersona);
       const sources = Array.isArray(cached.sources) ? cached.sources : [];
-      const shouldShowSources = !isInsufficientInformationAnswer(rawAnswer);
+      const isInsufficientAnswer = isInsufficientInformationAnswer(rawAnswer);
+      const shouldShowSources = !isInsufficientAnswer;
       const sourcesMarkdown = shouldShowSources ? buildSourcesMarkdown(sources) : "";
 
       liveAssistant.setMeta(routeDetails.answerMeta);
@@ -2444,23 +2465,26 @@ composer.addEventListener("submit", async (event) => {
       const cachedEffectiveSiteFilter = cachedRetriedAllSites
         ? SITE_FILTER_ALL
         : cachedRouteSite || selectedSiteFilter;
-      liveAssistant.setFeedback(
-        buildFeedbackContext({
-          query,
-          answer,
-          sources,
-          routeDetails,
-          requestedSiteFilter: selectedSiteFilter,
-          effectiveSiteFilter: cachedEffectiveSiteFilter,
-          responseMode: "cache",
-          retriedAllSites: cachedRetriedAllSites,
-          persona: selectedPersona,
-        })
-      );
+      if (!isInsufficientAnswer) {
+        liveAssistant.setFeedback(
+          buildFeedbackContext({
+            query,
+            answer,
+            sources,
+            routeDetails,
+            requestedSiteFilter: selectedSiteFilter,
+            effectiveSiteFilter: cachedEffectiveSiteFilter,
+            responseMode: "cache",
+            retriedAllSites: cachedRetriedAllSites,
+            persona: selectedPersona,
+          })
+        );
+      }
       if (sourcesMarkdown) {
         addMessage("system", sourcesMarkdown.trim(), undefined, {
           renderMarkdown: true,
           disableAutoScroll: true,
+          messageType: "sources",
         });
       }
       trackEvent("query_succeeded", {
@@ -2505,29 +2529,33 @@ composer.addEventListener("submit", async (event) => {
       retriedAllSites = true;
     }
 
+    const isInsufficientAnswer = isInsufficientInformationAnswer(rawAnswer);
     const answer = applyPersonaAnswerVoice(rawAnswer, selectedPersona);
     liveAssistant.finalize(answer);
     const effectiveSiteFilter = retriedAllSites ? SITE_FILTER_ALL : selectedSiteFilter;
-    liveAssistant.setFeedback(
-      buildFeedbackContext({
-        query,
-        answer,
-        sources,
-        routeDetails,
-        requestedSiteFilter: selectedSiteFilter,
-        effectiveSiteFilter,
-        responseMode,
-        retriedAllSites,
-        persona: selectedPersona,
-      })
-    );
+    if (!isInsufficientAnswer) {
+      liveAssistant.setFeedback(
+        buildFeedbackContext({
+          query,
+          answer,
+          sources,
+          routeDetails,
+          requestedSiteFilter: selectedSiteFilter,
+          effectiveSiteFilter,
+          responseMode,
+          retriedAllSites,
+          persona: selectedPersona,
+        })
+      );
+    }
 
-    const shouldShowSources = !isInsufficientInformationAnswer(rawAnswer);
+    const shouldShowSources = !isInsufficientAnswer;
     const sourcesMarkdown = shouldShowSources ? buildSourcesMarkdown(sources) : "";
     if (sourcesMarkdown) {
       addMessage("system", sourcesMarkdown.trim(), undefined, {
         renderMarkdown: true,
         disableAutoScroll: true,
+        messageType: "sources",
       });
     }
 
