@@ -1,5 +1,5 @@
 window.RAG_CHATBOT_CONFIG = {
-  "generated_at": "2026-02-25T08:57:23.324181+00:00",
+  "generated_at": "2026-02-25T09:23:38.082391+00:00",
   "orchestrator": {
     "function_name": "rag-chatbot-orchestrator-router",
     "function_url": "https://lsldyl7tiq4rd42dvukd4mrgtm0jcvmz.lambda-url.us-east-1.on.aws/"
