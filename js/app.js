@@ -1154,13 +1154,28 @@ function submitComposerForm() {
   composer.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
 }
 
+function focusQueryInput({ moveCaretToEnd = false } = {}) {
+  if (!queryInput) {
+    return;
+  }
+  try {
+    queryInput.focus({ preventScroll: true });
+  } catch (_error) {
+    queryInput.focus();
+  }
+  if (moveCaretToEnd && typeof queryInput.setSelectionRange === "function") {
+    const endIndex = queryInput.value.length;
+    queryInput.setSelectionRange(endIndex, endIndex);
+  }
+}
+
 function submitSuggestedQuery(query) {
   const suggestion = String(query || "").trim();
   if (!suggestion) {
     return;
   }
   queryInput.value = suggestion;
-  queryInput.focus();
+  focusQueryInput({ moveCaretToEnd: true });
   if (sendButton.disabled) {
     return;
   }
@@ -2419,10 +2434,10 @@ queryInput.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
     return;
   }
-  event.preventDefault();
   if (sendButton.disabled) {
     return;
   }
+  event.preventDefault();
   nextSubmitTrigger = "enter_key";
   submitComposerForm();
 });
@@ -2456,10 +2471,10 @@ composer.addEventListener("submit", async (event) => {
 
   sendButton.disabled = true;
   setSendButtonLoading(true);
-  queryInput.disabled = true;
   setProcessingBackground(true);
   addMessage("user", query);
   queryInput.value = "";
+  focusQueryInput();
   let liveAssistant = createLiveAssistantStream("", { metaType: "routing" });
 
   try {
@@ -2619,7 +2634,6 @@ composer.addEventListener("submit", async (event) => {
     setProcessingBackground(false);
     setSendButtonLoading(false);
     sendButton.disabled = false;
-    queryInput.disabled = false;
   }
 });
 
