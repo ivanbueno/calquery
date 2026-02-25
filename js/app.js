@@ -1668,9 +1668,8 @@ function buildNetworkFetchErrorMessage(orchestratorRequestUrl) {
   const endpoint = getDisplayDomain(orchestratorRequestUrl);
   const endpointLabel = endpoint ? ` (${endpoint})` : "";
   return (
-    `Could not reach the chatbot service${endpointLabel}. ` +
-    "Check VPN/firewall/ad blockers, then retry. " +
-    "If it persists, verify Function URL CORS allow-origins includes this site."
+    "Could not reach the AI assistant. " +
+    "Check VPN/firewall/ad blockers, then retry. "
   );
 }
 
