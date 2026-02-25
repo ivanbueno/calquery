@@ -513,10 +513,28 @@ function getSelectedPersona() {
   return normalizePersonaName(personaSelect ? personaSelect.value : PERSONA_DEFAULT);
 }
 
+function stripLeadingPersonaAnswerPrefix(answerText) {
+  const normalizedAnswer = String(answerText || "").trim();
+  if (!normalizedAnswer) {
+    return "";
+  }
+  for (const prefix of Object.values(PERSONA_ANSWER_PREFIX)) {
+    if (normalizedAnswer.startsWith(prefix)) {
+      const remainder = normalizedAnswer.slice(prefix.length).trimStart();
+      return remainder || normalizedAnswer;
+    }
+  }
+  return normalizedAnswer;
+}
+
 function applyPersonaAnswerVoice(answerText, personaName) {
   const normalizedAnswer = String(answerText || "").trim();
   if (!normalizedAnswer) {
     return normalizedAnswer;
+  }
+  const answerWithoutPersonaPrefix = stripLeadingPersonaAnswerPrefix(normalizedAnswer);
+  if (answerWithoutPersonaPrefix.startsWith(INSUFFICIENT_MARKER)) {
+    return answerWithoutPersonaPrefix;
   }
   const selectedPersona = normalizePersonaName(personaName);
   if (selectedPersona === PERSONA_DEFAULT) {
@@ -2135,7 +2153,7 @@ function createFeedbackControls(feedbackContext) {
 }
 
 function isInsufficientInformationAnswer(answer) {
-  const raw = String(answer || "").trim();
+  const raw = stripLeadingPersonaAnswerPrefix(answer);
   if (raw.startsWith(INSUFFICIENT_MARKER)) {
     return true;
   }
