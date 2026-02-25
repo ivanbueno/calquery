@@ -159,6 +159,12 @@ const INSUFFICIENT_INFORMATION_PATTERN = new RegExp(
     "(?:cannot|can't|unable\\s+to|could\\s+not)\\s+provide\\s+(?:the\\s+)?information\\s+(?:you\\s+)?(?:requested|asked\\s+for)",
     // "evidence [provided/presented/submitted/available]" + "does not / doesn't / did not" + "contain"
     "evidence\\s+(?:(?:provided|presented|submitted|available)\\s+)?(?:does\\s+not|doesn't|did\\s+not)\\s+contain",
+    // "context / document(s) does not / doesn't mention / contain / include / provide"
+    "(?:context|documents?)\\s+(?:does\\s+not|doesn't)\\s+(?:mention|contain|include|provide)",
+    // "no mention of"
+    "no\\s+mention\\s+of",
+    // "unable to find [any] information / details / specifics"
+    "unable\\s+to\\s+find\\s+(?:any\\s+)?(?:information|details|specifics)"
   ].join("|"),
   "i"
 );

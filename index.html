@@ -69,13 +69,21 @@
   <script defer src="./js/app.js"></script>
 </head>
 <body>
-  <div class="processing-bg bg1" aria-hidden="true"></div>
-  <div class="processing-bg bg2" aria-hidden="true"></div>
-  <div class="processing-bg bg3" aria-hidden="true"></div>
-
   <div class="page-layout">
     <main class="chat-shell">
       <header class="chat-header">
+        <button
+          id="infoToggle"
+          class="info-toggle"
+          type="button"
+          aria-label="Open info panel"
+          aria-controls="infoDrawer"
+          aria-expanded="false"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+          </svg>
+        </button>
         <button
           id="settingsToggle"
           class="settings-toggle"
@@ -172,87 +180,135 @@
 
       <footer class="chat-footer">
         <p class="footer-copy">&copy; <span id="footerYear"></span> CalQuery. All rights reserved.</p>
-        <p class="footer-inquiries"><a href="mailto:dev@ivanbueno.com">dev@ivanbueno.com</a>.</p>
+        <p class="footer-disclaimer">General legal information only; not legal advice. Verify with official court sources or a qualified attorney.</p>
+        <p class="footer-inquiries"><a href="mailto:dev@ivanbueno.com">dev@ivanbueno.com</a></p>
       </footer>
     </main>
-
-    <aside class="info" aria-labelledby="info-title">
-      <h2 id="info-title">California Courts. Clarified.</h2>
-      <div class="info-accordion" role="presentation">
-        <details class="info-accordion-item" open>
-          <summary class="info-accordion-summary">
-            <h3>How CalQuery helps</h3>
-          </summary>
-          <div class="info-accordion-content">
-            <p>Most people navigating California courts do so without a lawyer. Court forms, deadlines, and procedural rules can be difficult to understand.</p>
-            <p>CalQuery is an AI assistant designed for self-represented litigants, researchers, and legal professionals.</p>
-            <p>It connects your plain-language question to official California court documents and trusted self-help resources, so you can understand what to do next.</p>
-          </div>
-        </details>
-
-        <details class="info-accordion-item">
-          <summary class="info-accordion-summary">
-            <h3>Common usage</h3>
-          </summary>
-          <div class="info-accordion-content">
-            <p>CalQuery helps you find reliable information quickly, whether you are:</p>
-            <ul>
-              <li>Filing a new case</li>
-              <li>Responding to court papers</li>
-              <li>Preparing for a hearing</li>
-              <li>Requesting a fee waiver</li>
-              <li>Appealing a decision</li>
-              <li>Trying to understand court terminology</li>
-            </ul>
-          </div>
-        </details>
-
-        <details class="info-accordion-item">
-          <summary class="info-accordion-summary">
-            <h3>How CalQuery Works</h3>
-          </summary>
-          <div class="info-accordion-content">
-            <ol>
-              <li>You ask a question about California court procedures.</li>
-              <li>The system routes your question to the most relevant court document indexes.</li>
-              <li>Official court materials and self-help resources are searched.</li>
-              <li>The AI generates a response based only on those retrieved sources.</li>
-              <li>Citations are included so you can verify every answer.</li>
-            </ol>
-            <p>If the available court materials do not support a clear answer, CalQuery will say so instead of guessing.</p>
-          </div>
-        </details>
-
-        <details class="info-accordion-item">
-          <summary class="info-accordion-summary">
-            <h3>Why It Matters</h3>
-          </summary>
-          <div class="info-accordion-content">
-            <p>Access to justice depends on access to understandable information.</p>
-            <p>California's court system provides extensive public resources, but they are often difficult to navigate. CalQuery bridges that gap by translating official court information into plain-language guidance, while preserving source transparency.</p>
-          </div>
-        </details>
-
-        <details class="info-accordion-item">
-          <summary class="info-accordion-summary">
-            <h3>What Makes CalQuery Different</h3>
-          </summary>
-          <div class="info-accordion-content">
-            <dl>
-              <dt>Grounded answers only</dt>
-              <dd>Every response is limited to official court documents and trusted self-help sources.</dd>
-              <dt>No fabricated content</dt>
-              <dd>If reliable support is not available, the system does not generate unsupported answers.</dd>
-              <dt>Built-in citations</dt>
-              <dd>Each answer includes source references so you can confirm the information directly.</dd>
-            </dl>
-          </div>
-        </details>
-      </div>
-    </aside>
   </div>
 
-  <p class="site-disclaimer">CalQuery provides general legal information, not legal advice. Always verify information with official court sources or a qualified attorney.</p>
+  <div class="info-backdrop" id="infoBackdrop" aria-hidden="true"></div>
+
+  <aside class="info" id="infoDrawer" aria-labelledby="info-title">
+    <div class="info-drawer-header">
+      <h2 id="info-title">California Courts. Clarified.</h2>
+      <button class="info-drawer-close" id="infoDrawerClose" type="button" aria-label="Close info panel">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+        </svg>
+      </button>
+    </div>
+    <div class="info-accordion" role="presentation">
+      <details class="info-accordion-item" open>
+        <summary class="info-accordion-summary">
+          <h3>How CalQuery helps</h3>
+        </summary>
+        <div class="info-accordion-content">
+          <p>Most people navigating California courts do so without a lawyer. Court forms, deadlines, and procedural rules can be difficult to understand.</p>
+          <p>CalQuery is an AI assistant designed for self-represented litigants, researchers, and legal professionals.</p>
+          <p>It connects your plain-language question to official California court documents and trusted self-help resources, so you can understand what to do next.</p>
+        </div>
+      </details>
+
+      <details class="info-accordion-item">
+        <summary class="info-accordion-summary">
+          <h3>Common usage</h3>
+        </summary>
+        <div class="info-accordion-content">
+          <p>CalQuery helps you find reliable information quickly, whether you are:</p>
+          <ul>
+            <li>Filing a new case</li>
+            <li>Responding to court papers</li>
+            <li>Preparing for a hearing</li>
+            <li>Requesting a fee waiver</li>
+            <li>Appealing a decision</li>
+            <li>Trying to understand court terminology</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="info-accordion-item">
+        <summary class="info-accordion-summary">
+          <h3>How CalQuery Works</h3>
+        </summary>
+        <div class="info-accordion-content">
+          <ol>
+            <li>You ask a question about California court procedures.</li>
+            <li>The system routes your question to the most relevant court document indexes.</li>
+            <li>Official court materials and self-help resources are searched.</li>
+            <li>The AI generates a response based only on those retrieved sources.</li>
+            <li>Citations are included so you can verify every answer.</li>
+          </ol>
+          <p>If the available court materials do not support a clear answer, CalQuery will say so instead of guessing.</p>
+        </div>
+      </details>
+
+      <details class="info-accordion-item">
+        <summary class="info-accordion-summary">
+          <h3>Why It Matters</h3>
+        </summary>
+        <div class="info-accordion-content">
+          <p>Access to justice depends on access to understandable information.</p>
+          <p>California's court system provides extensive public resources, but they are often difficult to navigate. CalQuery bridges that gap by translating official court information into plain-language guidance, while preserving source transparency.</p>
+        </div>
+      </details>
+
+      <details class="info-accordion-item">
+        <summary class="info-accordion-summary">
+          <h3>What Makes CalQuery Different</h3>
+        </summary>
+        <div class="info-accordion-content">
+          <dl>
+            <dt>Grounded answers only</dt>
+            <dd>Every response is limited to official court documents and trusted self-help sources.</dd>
+            <dt>No fabricated content</dt>
+            <dd>If reliable support is not available, the system does not generate unsupported answers.</dd>
+            <dt>Built-in citations</dt>
+            <dd>Each answer includes source references so you can confirm the information directly.</dd>
+          </dl>
+        </div>
+      </details>
+    </div>
+  </aside>
+
+  <script>
+    (function () {
+      var toggle = document.getElementById('infoToggle');
+      var drawer = document.getElementById('infoDrawer');
+      var backdrop = document.getElementById('infoBackdrop');
+      var closeBtn = document.getElementById('infoDrawerClose');
+
+      function openDrawer() {
+        drawer.classList.add('is-open');
+        backdrop.classList.add('is-open');
+        toggle.setAttribute('aria-expanded', 'true');
+        document.body.classList.add('info-drawer-open');
+      }
+
+      function closeDrawer() {
+        drawer.classList.remove('is-open');
+        backdrop.classList.remove('is-open');
+        toggle.setAttribute('aria-expanded', 'false');
+        document.body.classList.remove('info-drawer-open');
+      }
+
+      toggle.addEventListener('click', function () {
+        if (drawer.classList.contains('is-open')) {
+          closeDrawer();
+        } else {
+          openDrawer();
+        }
+      });
+
+      closeBtn.addEventListener('click', closeDrawer);
+      backdrop.addEventListener('click', closeDrawer);
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && drawer.classList.contains('is-open')) {
+          closeDrawer();
+        }
+      });
+    })();
+  </script>
 
 </body>
 </html>
