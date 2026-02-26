@@ -574,6 +574,19 @@ function hasGoogleTagConfig(tagId) {
   });
 }
 
+function isTagAssistantPreviewSession() {
+  try {
+    const searchParams = new URLSearchParams(window.location.search || "");
+    return (
+      searchParams.has("gtm_debug")
+      || searchParams.has("gtm_preview")
+      || searchParams.has("gtm_auth")
+    );
+  } catch (error) {
+    return false;
+  }
+}
+
 function initializeAnalytics() {
   if (!googleTagId) {
     return;
@@ -596,7 +609,11 @@ function initializeAnalytics() {
 
   if (!hasGoogleTagConfig(googleTagId)) {
     window.gtag("js", new Date());
-    window.gtag("config", googleTagId);
+    if (isTagAssistantPreviewSession()) {
+      window.gtag("config", googleTagId, { debug_mode: true });
+    } else {
+      window.gtag("config", googleTagId);
+    }
   }
   analyticsEnabled = true;
   flushPendingAnalyticsEvents();
@@ -621,24 +638,12 @@ function scheduleAnalyticsInitialization() {
     return;
   }
 
-  const runWhenIdle = () => {
-    if (typeof window.requestIdleCallback === "function") {
-      window.requestIdleCallback(() => {
-        initializeAnalytics();
-      }, { timeout: 2500 });
-      return;
-    }
-    window.setTimeout(() => {
-      initializeAnalytics();
-    }, 1200);
-  };
-
-  if (document.readyState === "complete") {
-    runWhenIdle();
+  if (document.readyState === "loading") {
+    window.addEventListener("DOMContentLoaded", initializeAnalytics, { once: true });
     return;
   }
 
-  window.addEventListener("load", runWhenIdle, { once: true });
+  initializeAnalytics();
 }
 
 function trackEvent(name, params = {}) {
