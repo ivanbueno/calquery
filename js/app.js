@@ -1154,6 +1154,13 @@ function submitComposerForm() {
   composer.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
 }
 
+function isMobileViewport() {
+  if (typeof window.matchMedia === "function") {
+    return window.matchMedia(`(max-width: ${INFO_ACCORDION_MOBILE_BREAKPOINT_PX}px)`).matches;
+  }
+  return window.innerWidth <= INFO_ACCORDION_MOBILE_BREAKPOINT_PX;
+}
+
 function focusQueryInput({ moveCaretToEnd = false } = {}) {
   if (!queryInput) {
     return;
@@ -1175,7 +1182,9 @@ function submitSuggestedQuery(query) {
     return;
   }
   queryInput.value = suggestion;
-  focusQueryInput({ moveCaretToEnd: true });
+  if (!isMobileViewport()) {
+    focusQueryInput({ moveCaretToEnd: true });
+  }
   if (sendButton.disabled) {
     return;
   }
@@ -2474,7 +2483,11 @@ composer.addEventListener("submit", async (event) => {
   setProcessingBackground(true);
   addMessage("user", query);
   queryInput.value = "";
-  focusQueryInput();
+  if (isMobileViewport()) {
+    queryInput.blur();
+  } else {
+    focusQueryInput();
+  }
   let liveAssistant = createLiveAssistantStream("", { metaType: "routing" });
 
   try {
