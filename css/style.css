@@ -777,6 +777,37 @@ a.brand-text:active {
   padding-left: calc(1.05rem - 3px);
 }
 
+.message.system.search-expansion-status-message {
+  width: 100%;
+  max-width: 100%;
+  margin: 0.15rem 0 0.25rem;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--subtle);
+  font-size: 0.86rem;
+  line-height: 1.2;
+}
+
+.message.system.search-expansion-status-message .content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+
+.message.system.search-expansion-status-message .content::before,
+.message.system.search-expansion-status-message .content::after {
+  content: "";
+  flex: 1 1 0;
+  min-width: 1.4rem;
+  border-top: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+}
+
 .message.system.sources-message {
   width: min(80%, 48rem);
   max-width: min(80%, 48rem);

@@ -961,6 +961,9 @@ function createMessageElements(role, metaText, options = {}) {
   if (options.messageType === "sources") {
     message.classList.add("sources-message");
   }
+  if (options.messageType === "search-expansion-status") {
+    message.classList.add("search-expansion-status-message");
+  }
 
   const textNode = document.createElement("div");
   textNode.className = "content";
@@ -1305,7 +1308,7 @@ function loadShowInsufficientPreference() {
   } catch (error) {
     saved = null;
   }
-  setShowInsufficient(saved === "1");
+  setShowInsufficient(saved !== "0");
 }
 
 function normalizeThemeName(themeName) {
@@ -2561,10 +2564,14 @@ composer.addEventListener("submit", async (event) => {
     ) {
       if (showInsufficientCheckbox && showInsufficientCheckbox.checked) {
         liveAssistant.finalize(applyPersonaAnswerVoice(rawAnswer, selectedPersona));
-        addMessage("system", "Expanding search to all sites\u2026");
+        addMessage("system", "Expanding search to all sites", undefined, {
+          messageType: "search-expansion-status",
+        });
       } else {
         await liveAssistant.remove();
-        addMessage("system", "Not enough information found. Expanding search to all sites\u2026");
+        addMessage("system", "Expanding search to all sites", undefined, {
+          messageType: "search-expansion-status",
+        });
       }
       trackEvent("query_retried_all_sites", {
         original_site_filter: toAnalyticsSiteFilter(selectedSiteFilter),
