@@ -67,9 +67,12 @@
   <link rel="stylesheet" href="./css/style.css" />
   <style>
     /* Keep chat width/alignment close to ChatGPT Web conversation layout. */
-    .chat-log {
+    .chat-shell {
       --chat-column-max-width: 52rem;
       --chat-side-padding: max(1rem, calc((100% - var(--chat-column-max-width)) / 2));
+    }
+
+    .chat-log {
       padding-inline: var(--chat-side-padding);
     }
 
@@ -96,7 +99,7 @@
     }
 
     @media (max-width: 980px) {
-      .chat-log {
+      .chat-shell {
         --chat-column-max-width: 46rem;
       }
 
@@ -110,7 +113,7 @@
     }
 
     @media (max-width: 700px) {
-      .chat-log {
+      .chat-shell {
         --chat-side-padding: 0.82rem;
       }
 
@@ -222,16 +225,85 @@
         </div>
       </header>
 
-      <section id="chatLog" class="chat-log"></section>
+      <section id="chatLog" class="chat-log">
+        <section id="welcomePanel" class="welcome-panel" aria-labelledby="welcomeTitle">
+          <div class="welcome-copy">
+            <p class="welcome-eyebrow">Official California court guidance</p>
+            <h2 id="welcomeTitle">Ask in plain language. Get grounded answers with sources.</h2>
+            <p class="welcome-description">
+              CalQuery routes your question to the most relevant California court materials, then answers with plain-language guidance and links back to the record.
+            </p>
+          </div>
+
+          <div class="welcome-highlights" aria-label="Key product highlights">
+            <article class="welcome-highlight-card">
+              <p class="welcome-highlight-label">Grounded answers</p>
+              <p class="welcome-highlight-copy">Responses stay tied to official court documents and trusted self-help materials.</p>
+            </article>
+            <article class="welcome-highlight-card">
+              <p class="welcome-highlight-label">Transparent sources</p>
+              <p class="welcome-highlight-copy">Every answer can point you back to the source pages that support it.</p>
+            </article>
+            <article class="welcome-highlight-card">
+              <p class="welcome-highlight-label">Site-aware search</p>
+              <p class="welcome-highlight-copy">Start narrow on one court site or search across all indexed sources.</p>
+            </article>
+          </div>
+
+          <div class="welcome-controls">
+            <section class="welcome-control-block" aria-labelledby="welcomeSiteLabel">
+              <div class="welcome-control-heading-row">
+                <p id="welcomeSiteLabel" class="welcome-control-label">Focus your search</p>
+              </div>
+              <div id="welcomeSitePills" class="site-picker-pills site-picker-pills-welcome"></div>
+            </section>
+
+            <section class="welcome-control-block" aria-labelledby="welcomeStarterLabel">
+              <div class="welcome-control-heading-row">
+                <p id="welcomeStarterLabel" class="welcome-control-label">Try a starter question</p>
+                <span class="welcome-control-value">Click to send</span>
+              </div>
+              <div id="starterCardGrid" class="starter-card-grid"></div>
+            </section>
+          </div>
+        </section>
+      </section>
 
       <form id="composer" class="composer">
-        <textarea id="queryInput" placeholder="Ask about California court forms, deadlines, procedures, and next steps..." aria-label="Ask a question"></textarea>
+        <div class="composer-shell">
+          <div class="composer-toolbar">
+            <div class="composer-context">
+              <span class="composer-context-label">Searching</span>
+              <div class="composer-context-picker">
+                <button
+                  id="composerSiteBadge"
+                  class="composer-context-pill composer-context-pill-button"
+                  type="button"
+                  aria-label="Change site focus"
+                  aria-haspopup="menu"
+                  aria-expanded="false"
+                  aria-controls="composerSiteMenu"
+                >
+                  <span id="composerSiteBadgeLabel">Self Help</span>
+                  <svg class="composer-context-pill-icon" viewBox="0 0 20 20" aria-hidden="true">
+                    <path fill="currentColor" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.12l3.71-3.89a.75.75 0 1 1 1.08 1.04l-4.25 4.46a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z"/>
+                  </svg>
+                </button>
+                <div id="composerSiteMenu" class="composer-site-menu" role="menu" aria-label="Choose site focus" hidden></div>
+              </div>
+            </div>
+            <p class="composer-shortcuts">Enter to send · Shift+Enter for a new line</p>
+          </div>
+          <textarea id="queryInput" placeholder="Ask about California court forms, deadlines, procedures, and next steps..." aria-label="Ask a question"></textarea>
+        </div>
         <div class="actions">
           <button id="sendButton" type="submit">
-            <svg class="send-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="currentColor" d="M21.5 11.3 3.8 3.2a1 1 0 0 0-1.4 1l1.2 6.2a1 1 0 0 0 .8.8l8.1 1.3-8.1 1.3a1 1 0 0 0-.8.8L2.4 21a1 1 0 0 0 1.4 1l17.7-8.1a1.4 1.4 0 0 0 0-2.6Z"/>
-            </svg>
-            <span>Send</span>
+            <span class="send-icon-badge" aria-hidden="true">
+              <svg class="send-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M21.5 11.3 3.8 3.2a1 1 0 0 0-1.4 1l1.2 6.2a1 1 0 0 0 .8.8l8.1 1.3-8.1 1.3a1 1 0 0 0-.8.8L2.4 21a1 1 0 0 0 1.4 1l17.7-8.1a1.4 1.4 0 0 0 0-2.6Z"/>
+              </svg>
+            </span>
+            <span class="send-label">Ask</span>
           </button>
         </div>
       </form>

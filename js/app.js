@@ -22,6 +22,12 @@ const composer = document.getElementById("composer");
 const queryInput = document.getElementById("queryInput");
 const sendButton = document.getElementById("sendButton");
 const chatLog = document.getElementById("chatLog");
+const welcomePanel = document.getElementById("welcomePanel");
+const welcomeSitePills = document.getElementById("welcomeSitePills");
+const starterCardGrid = document.getElementById("starterCardGrid");
+const composerSiteBadge = document.getElementById("composerSiteBadge");
+const composerSiteBadgeLabel = document.getElementById("composerSiteBadgeLabel");
+const composerSiteMenu = document.getElementById("composerSiteMenu");
 const footerYear = document.getElementById("footerYear");
 const settingsToggle = document.getElementById("settingsToggle");
 const settingsPanel = document.getElementById("settingsPanel");
@@ -42,9 +48,7 @@ const infoAccordionItems = Array.from(document.querySelectorAll(".info-accordion
 let chatScrollRafId = null;
 let brandLogoSyncRafId = null;
 let userHasSubmittedQuery = false;
-let starterMessageTimeoutId = null;
-let starterFollowupTimeoutId = null;
-let starterQueryTimeoutId = null;
+let composerBusy = false;
 const ROUTING_META_HIDDEN_CLASS = "hide-routing-meta";
 const ROUTING_META_STORAGE_KEY = "calquery-routing-meta-visible";
 const SHOW_INSUFFICIENT_STORAGE_KEY = "calquery-show-insufficient";
@@ -113,10 +117,9 @@ const PERSONA_ANSWER_PREFIX = {
 const AVAILABLE_SITE_FILTERS = extractSiteFilters(routes);
 const RESPONSE_CACHE_STORAGE_KEY = "calquery-response-cache";
 const RESPONSE_CACHE_MAX_ENTRIES = 50;
-const STARTER_QUERY_MESSAGE_DELAY_MS = 2000;
-const STARTER_MESSAGE_DELAY_MS = 500;
-const STARTER_FOLLOWUP_MESSAGE_DELAY_MS = 1000;
-const STARTER_QUERY_DISPLAY_COUNT = 3;
+const WELCOME_STARTER_CARD_COUNT = 4;
+const COMPOSER_TEXTAREA_MIN_HEIGHT_PX = 84;
+const COMPOSER_TEXTAREA_MAX_HEIGHT_PX = 220;
 const FEEDBACK_RATING_UP = "up";
 const FEEDBACK_RATING_DOWN = "down";
 const INSUFFICIENT_MARKER = "⚖";
@@ -310,6 +313,253 @@ function getDefaultSiteFilterValue() {
   return SITE_FILTER_ALL;
 }
 
+function formatSiteFilterLabel(siteValue) {
+  const selectedSiteFilter = normalizeSiteFilterValue(siteValue);
+  return selectedSiteFilter === SITE_FILTER_ALL ? "All Sites" : selectedSiteFilter;
+}
+
+function updateSelectedSiteUi(siteValue) {
+  const siteLabel = formatSiteFilterLabel(siteValue);
+
+  if (composerSiteBadgeLabel) {
+    composerSiteBadgeLabel.textContent = siteLabel;
+  } else if (composerSiteBadge) {
+    composerSiteBadge.textContent = siteLabel;
+  }
+
+  if (composerSiteBadge) {
+    composerSiteBadge.setAttribute("aria-label", `Change site focus. Current focus: ${siteLabel}.`);
+  }
+
+  if (composerSiteMenu) {
+    composerSiteMenu.querySelectorAll(".composer-site-option").forEach((option) => {
+      if (!(option instanceof HTMLElement)) {
+        return;
+      }
+      const isActive = option.dataset.siteValue === normalizeSiteFilterValue(siteValue);
+      option.classList.toggle("is-active", isActive);
+      option.setAttribute("aria-checked", String(isActive));
+      const currentState = option.querySelector(".composer-site-option-state");
+      if (currentState instanceof HTMLElement) {
+        currentState.hidden = !isActive;
+      }
+    });
+  }
+
+  if (welcomeSitePills) {
+    welcomeSitePills.querySelectorAll(".site-pill").forEach((pill) => {
+      if (!(pill instanceof HTMLElement)) {
+        return;
+      }
+      pill.classList.toggle("is-active", pill.dataset.siteValue === normalizeSiteFilterValue(siteValue));
+    });
+  }
+}
+
+function createSiteFilterPill(siteValue, label, trigger) {
+  const pill = document.createElement("button");
+  pill.type = "button";
+  pill.className = "site-pill";
+  pill.textContent = label;
+  pill.dataset.siteValue = siteValue;
+  pill.addEventListener("click", () => {
+    const selected = setSiteFilter(siteValue);
+    syncSiteFilterQueryString(selected);
+    trackEvent("site_filter_toggled", {
+      site: toAnalyticsSiteFilter(selected),
+      trigger,
+    });
+  });
+  return pill;
+}
+
+function setComposerSiteMenuOpen(isOpen) {
+  if (!composerSiteBadge || !composerSiteMenu) {
+    return;
+  }
+  const open = Boolean(isOpen);
+  composerSiteMenu.hidden = !open;
+  composerSiteBadge.setAttribute("aria-expanded", String(open));
+  composerSiteBadge.classList.toggle("is-open", open);
+}
+
+function createComposerSiteOption(siteValue) {
+  const option = document.createElement("button");
+  option.type = "button";
+  option.className = "composer-site-option";
+  option.dataset.siteValue = siteValue;
+  option.setAttribute("role", "menuitemradio");
+  option.setAttribute("aria-checked", "false");
+
+  const label = document.createElement("span");
+  label.className = "composer-site-option-label";
+  label.textContent = formatSiteFilterLabel(siteValue);
+
+  const state = document.createElement("span");
+  state.className = "composer-site-option-state";
+  state.textContent = "Current";
+  state.hidden = true;
+
+  option.append(label, state);
+  option.addEventListener("click", () => {
+    const selected = setSiteFilter(siteValue);
+    syncSiteFilterQueryString(selected);
+    setComposerSiteMenuOpen(false);
+    trackEvent("site_filter_toggled", {
+      site: toAnalyticsSiteFilter(selected),
+      trigger: "composer_site_menu",
+    });
+    if (queryInput) {
+      queryInput.focus();
+    }
+  });
+
+  return option;
+}
+
+function renderWelcomeSitePills() {
+  if (!welcomeSitePills) {
+    return;
+  }
+
+  welcomeSitePills.replaceChildren();
+  const allSites = [SITE_FILTER_ALL, ...AVAILABLE_SITE_FILTERS];
+  for (const siteValue of allSites) {
+    const label = siteValue === SITE_FILTER_ALL ? "All Sites" : siteValue;
+    welcomeSitePills.appendChild(createSiteFilterPill(siteValue, label, "welcome_site_pill"));
+  }
+
+  updateSelectedSiteUi(getSelectedSiteFilter());
+}
+
+function renderComposerSiteMenu() {
+  if (!composerSiteMenu) {
+    return;
+  }
+
+  composerSiteMenu.replaceChildren();
+  const siteOptions = [SITE_FILTER_ALL, ...AVAILABLE_SITE_FILTERS];
+  for (const siteValue of siteOptions) {
+    composerSiteMenu.appendChild(createComposerSiteOption(siteValue));
+  }
+
+  updateSelectedSiteUi(getSelectedSiteFilter());
+}
+
+function renderWelcomeStarterCards() {
+  if (!starterCardGrid) {
+    return;
+  }
+
+  starterCardGrid.replaceChildren();
+
+  if (!routes.length || !orchestratorUrl) {
+    const notice = document.createElement("div");
+    notice.className = "welcome-notice";
+
+    const title = document.createElement("p");
+    title.className = "welcome-notice-title";
+    title.textContent = routes.length
+      ? "Chat service needs configuration"
+      : "No search routes are available";
+
+    const copy = document.createElement("p");
+    copy.className = "welcome-notice-copy";
+    copy.textContent = routes.length
+      ? "Run launch again to refresh the orchestrator URL in app-config.js."
+      : "Run launch to generate app-config.js and populate routes.";
+
+    notice.append(title, copy);
+    starterCardGrid.appendChild(notice);
+    return;
+  }
+
+  const suggestions = selectWelcomeStarterQueries(STARTER_QUERIES, WELCOME_STARTER_CARD_COUNT);
+  for (const suggestion of suggestions) {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "starter-card";
+    card.title = suggestion;
+
+    const question = document.createElement("p");
+    question.className = "starter-card-question";
+    question.textContent = suggestion;
+
+    const meta = document.createElement("p");
+    meta.className = "starter-card-meta";
+    meta.textContent = "Ask";
+
+    card.append(question, meta);
+    card.addEventListener("click", () => {
+      nextSubmitTrigger = "starter_query_card";
+      trackEvent("starter_query_clicked", {
+        query_length: suggestion.length,
+        trigger: "welcome_card",
+      });
+      submitSuggestedQuery(suggestion);
+    });
+
+    starterCardGrid.appendChild(card);
+  }
+
+  trackEvent("starter_queries_displayed", {
+    query_count: suggestions.length,
+    trigger: "welcome_panel",
+  });
+}
+
+function setWelcomePanelHidden(isHidden) {
+  if (!welcomePanel) {
+    return;
+  }
+  const hidden = Boolean(isHidden);
+  welcomePanel.hidden = hidden;
+
+  if (pageBody) {
+    pageBody.classList.toggle("welcome-active", !hidden);
+  }
+
+  if (hidden && isMobileViewport() && typeof window !== "undefined") {
+    window.scrollTo(0, 0);
+  }
+}
+
+function resizeComposerInput() {
+  if (!queryInput) {
+    return;
+  }
+
+  queryInput.style.height = "auto";
+  const nextHeight = Math.max(
+    COMPOSER_TEXTAREA_MIN_HEIGHT_PX,
+    Math.min(queryInput.scrollHeight, COMPOSER_TEXTAREA_MAX_HEIGHT_PX)
+  );
+  queryInput.style.height = `${nextHeight}px`;
+  queryInput.style.overflowY =
+    queryInput.scrollHeight > COMPOSER_TEXTAREA_MAX_HEIGHT_PX ? "auto" : "hidden";
+}
+
+function syncComposerState() {
+  if (!queryInput || !sendButton) {
+    return;
+  }
+
+  const hasText = Boolean(String(queryInput.value || "").trim());
+  const isDisabled = composerBusy || !hasText;
+  sendButton.disabled = isDisabled;
+  sendButton.setAttribute("aria-disabled", String(isDisabled));
+
+  if (composer) {
+    composer.classList.toggle("has-input", hasText);
+    composer.classList.toggle("is-busy", composerBusy);
+  }
+}
+
+function setComposerBusy(isBusy) {
+  composerBusy = Boolean(isBusy);
+  syncComposerState();
+}
+
 function setSiteFilter(siteValue, options = {}) {
   const selectedSiteFilter = normalizeSiteFilterValue(siteValue);
   const shouldPersist = options.persist !== false;
@@ -319,6 +569,7 @@ function setSiteFilter(siteValue, options = {}) {
   }
 
   updateBrandTitle(selectedSiteFilter);
+  updateSelectedSiteUi(selectedSiteFilter);
 
   if (shouldPersist) {
     try {
@@ -715,6 +966,8 @@ function setSendButtonLoading(isLoading) {
 }
 
 setSendButtonLoading(false);
+resizeComposerInput();
+syncComposerState();
 
 function escapeHtml(text) {
   return String(text || "")
@@ -1190,6 +1443,8 @@ function submitSuggestedQuery(query) {
     return;
   }
   queryInput.value = suggestion;
+  resizeComposerInput();
+  syncComposerState();
   if (!isMobileViewport()) {
     focusQueryInput({ moveCaretToEnd: true });
   }
@@ -1216,62 +1471,22 @@ function selectRandomQueries(queries, count) {
   return shuffled.slice(0, limitedCount);
 }
 
-function addStarterQueryMessage(queries) {
-  const suggestions = selectRandomQueries(queries, STARTER_QUERY_DISPLAY_COUNT);
+function selectWelcomeStarterQueries(queries, count, maxLength = 72) {
+  const suggestions = Array.isArray(queries)
+    ? queries.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
   if (!suggestions.length) {
-    return;
+    return [];
   }
 
-  const message = document.createElement("article");
-  message.className = "message system";
-
-  const textNode = document.createElement("div");
-  textNode.className = "content";
-
-  const intro = document.createElement("p");
-  intro.textContent = "Try asking:";
-  textNode.appendChild(intro);
-
-  const list = document.createElement("ul");
-  for (const suggestion of suggestions) {
-    const item = document.createElement("li");
-    const link = document.createElement("a");
-    link.href = "#";
-    link.textContent = suggestion;
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
-      nextSubmitTrigger = "starter_query";
-      trackEvent("starter_query_clicked", {
-        query_length: suggestion.length,
-      });
-      submitSuggestedQuery(suggestion);
-    });
-    item.appendChild(link);
-    list.appendChild(item);
+  const conciseSuggestions = suggestions.filter((item) => item.length <= maxLength);
+  if (conciseSuggestions.length >= count) {
+    return selectRandomQueries(conciseSuggestions, count);
   }
-  textNode.appendChild(list);
-  message.appendChild(textNode);
 
-  chatLog.appendChild(message);
-  chatLog.scrollTop = chatLog.scrollHeight;
-  trackEvent("starter_queries_displayed", {
-    query_count: suggestions.length,
-  });
-}
-
-function cancelPendingStarterMessages() {
-  if (starterMessageTimeoutId !== null) {
-    window.clearTimeout(starterMessageTimeoutId);
-    starterMessageTimeoutId = null;
-  }
-  if (starterFollowupTimeoutId !== null) {
-    window.clearTimeout(starterFollowupTimeoutId);
-    starterFollowupTimeoutId = null;
-  }
-  if (starterQueryTimeoutId !== null) {
-    window.clearTimeout(starterQueryTimeoutId);
-    starterQueryTimeoutId = null;
-  }
+  return [...suggestions]
+    .sort((left, right) => left.length - right.length)
+    .slice(0, Math.max(0, Math.floor(Number(count) || 0)));
 }
 
 function setRoutingMetaVisibility(isVisible) {
@@ -1610,6 +1825,35 @@ if (siteSelect) {
   });
 }
 
+if (composerSiteBadge && composerSiteMenu) {
+  composerSiteBadge.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const nextOpenState = composerSiteMenu.hidden;
+    if (nextOpenState) {
+      setSettingsPanelOpen(false);
+    }
+    setComposerSiteMenuOpen(nextOpenState);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (composerSiteMenu.hidden) {
+      return;
+    }
+    if (composerSiteMenu.contains(event.target) || composerSiteBadge.contains(event.target)) {
+      return;
+    }
+    setComposerSiteMenuOpen(false);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || composerSiteMenu.hidden) {
+      return;
+    }
+    setComposerSiteMenuOpen(false);
+    composerSiteBadge.focus();
+  });
+}
+
 if (clearCacheButton) {
   const clearCacheLabel = clearCacheButton.querySelector(".clear-cache-label");
   clearCacheButton.addEventListener("click", () => {
@@ -1631,6 +1875,9 @@ if (settingsToggle && settingsPanel) {
   settingsToggle.addEventListener("click", (event) => {
     event.stopPropagation();
     const nextOpenState = settingsPanel.hidden;
+    if (nextOpenState) {
+      setComposerSiteMenuOpen(false);
+    }
     setSettingsPanelOpen(nextOpenState);
     trackEvent("settings_panel_toggled", {
       open: nextOpenState ? 1 : 0,
@@ -1905,37 +2152,115 @@ function getDisplayDomain(url) {
   }
 }
 
-function buildSourcesMarkdown(sources) {
-  if (!Array.isArray(sources) || !sources.length) {
-    return "";
+function getDisplayUrl(url) {
+  try {
+    const parsed = new URL(String(url || "").trim(), window.location.href);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return "";
+    }
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    const pathname = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/$/, "");
+    return `${hostname}${pathname}${parsed.search}${parsed.hash}`;
+  } catch (error) {
+    return String(url || "").trim();
+  }
+}
+
+function getRenderableSources(sources) {
+  const items = [];
+  const seen = new Set();
+
+  if (!Array.isArray(sources)) {
+    return items;
   }
 
-  const lines = [];
-  const seen = new Set();
   for (const source of sources) {
     if (!source || typeof source !== "object") {
       continue;
     }
+
     const url = typeof source.url === "string" ? source.url.trim() : "";
     if (!isHttpUrl(url)) {
       continue;
     }
 
     const title = typeof source.title === "string" ? source.title.trim() : "";
-    const safeTitle = (title || url).replace(/\[/g, "(").replace(/\]/g, ")");
-    const domain = getDisplayDomain(url);
-    const key = `${safeTitle}::${url}`;
-    if (seen.has(key)) {
+    const dedupeKey = `${title}::${url}`;
+    if (seen.has(dedupeKey)) {
       continue;
     }
-    seen.add(key);
-    lines.push(domain ? `- [${safeTitle}](${url}) (${domain})` : `- [${safeTitle}](${url})`);
+    seen.add(dedupeKey);
+    items.push({
+      title: title || url,
+      url,
+      displayUrl: getDisplayUrl(url) || url,
+    });
   }
 
-  if (!lines.length) {
-    return "";
+  return items;
+}
+
+function addSourcesMessage(sources) {
+  const items = getRenderableSources(sources);
+  if (!items.length) {
+    return;
   }
-  return `\n\n### Sources\n${lines.join("\n")}`;
+
+  const { message, textNode } = createMessageElements("system", "", {
+    messageType: "sources",
+  });
+
+  textNode.innerHTML = "";
+
+  const header = document.createElement("div");
+  header.className = "sources-header";
+
+  const heading = document.createElement("h3");
+  heading.textContent = "Sources";
+
+  const subtitle = document.createElement("p");
+  subtitle.textContent = `${items.length} official reference${items.length === 1 ? "" : "s"} used in this answer`;
+
+  header.append(heading, subtitle);
+  textNode.appendChild(header);
+
+  const grid = document.createElement("div");
+  grid.className = "sources-grid";
+
+  for (const item of items) {
+    const card = document.createElement("a");
+    card.className = "source-card";
+    card.href = item.url;
+    card.target = "_blank";
+    card.rel = "noopener noreferrer";
+
+    const badges = document.createElement("div");
+    badges.className = "source-card-badges";
+
+    const urlBadge = document.createElement("span");
+    urlBadge.className = "source-card-badge";
+    urlBadge.textContent = item.displayUrl;
+    urlBadge.title = item.url;
+    badges.appendChild(urlBadge);
+
+    const title = document.createElement("span");
+    title.className = "source-card-title";
+    title.textContent = item.title;
+
+    card.appendChild(title);
+    if (badges.childElementCount) {
+      card.appendChild(badges);
+    }
+    grid.appendChild(card);
+  }
+
+  textNode.appendChild(grid);
+  chatLog.appendChild(message);
+
+  const previousAssistant = findPreviousAssistantMessage(message);
+  if (previousAssistant) {
+    previousAssistant.classList.add("assistant-with-sources-shelf");
+  }
 }
 
 function toFeedbackSiteFilter(siteValue) {
@@ -2447,17 +2772,24 @@ if (sendButton) {
   });
 }
 
-queryInput.addEventListener("keydown", (event) => {
-  if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
-    return;
-  }
-  if (sendButton.disabled) {
-    return;
-  }
-  event.preventDefault();
-  nextSubmitTrigger = "enter_key";
-  submitComposerForm();
-});
+if (queryInput) {
+  queryInput.addEventListener("input", () => {
+    resizeComposerInput();
+    syncComposerState();
+  });
+
+  queryInput.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
+      return;
+    }
+    if (sendButton.disabled) {
+      return;
+    }
+    event.preventDefault();
+    nextSubmitTrigger = "enter_key";
+    submitComposerForm();
+  });
+}
 
 composer.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -2468,7 +2800,7 @@ composer.addEventListener("submit", async (event) => {
   }
 
   userHasSubmittedQuery = true;
-  cancelPendingStarterMessages();
+  setWelcomePanelHidden(true);
   const selectedSiteFilter = getSelectedSiteFilter();
   const selectedPersona = getSelectedPersona();
   const submitTrigger = nextSubmitTrigger || "programmatic";
@@ -2486,11 +2818,13 @@ composer.addEventListener("submit", async (event) => {
     cache_hit: cached ? 1 : 0,
   });
 
-  sendButton.disabled = true;
+  setComposerBusy(true);
   setSendButtonLoading(true);
   setProcessingBackground(true);
   addMessage("user", query);
   queryInput.value = "";
+  resizeComposerInput();
+  syncComposerState();
   if (isMobileViewport()) {
     queryInput.blur();
   } else {
@@ -2506,8 +2840,6 @@ composer.addEventListener("submit", async (event) => {
       const answer = applyPersonaAnswerVoice(rawAnswer, selectedPersona);
       const sources = Array.isArray(cached.sources) ? cached.sources : [];
       const isInsufficientAnswer = isInsufficientInformationAnswer(rawAnswer);
-      const shouldShowSources = !isInsufficientAnswer;
-      const sourcesMarkdown = shouldShowSources ? buildSourcesMarkdown(sources) : "";
 
       liveAssistant.setMeta(routeDetails.answerMeta);
       liveAssistant.finalize(answer);
@@ -2533,12 +2865,8 @@ composer.addEventListener("submit", async (event) => {
           })
         );
       }
-      if (sourcesMarkdown) {
-        addMessage("system", sourcesMarkdown.trim(), undefined, {
-          renderMarkdown: true,
-          disableAutoScroll: true,
-          messageType: "sources",
-        });
+      if (!isInsufficientAnswer) {
+        addSourcesMessage(sources);
       }
       trackEvent("query_succeeded", {
         selected_index: routeDetails.selectedIndex || "none",
@@ -2606,14 +2934,8 @@ composer.addEventListener("submit", async (event) => {
       );
     }
 
-    const shouldShowSources = !isInsufficientAnswer;
-    const sourcesMarkdown = shouldShowSources ? buildSourcesMarkdown(sources) : "";
-    if (sourcesMarkdown) {
-      addMessage("system", sourcesMarkdown.trim(), undefined, {
-        renderMarkdown: true,
-        disableAutoScroll: true,
-        messageType: "sources",
-      });
+    if (!isInsufficientAnswer) {
+      addSourcesMessage(sources);
     }
 
     const cacheSize = setCachedResponse(query, selectedSiteFilter, selectedPersona, {
@@ -2658,95 +2980,14 @@ composer.addEventListener("submit", async (event) => {
   } finally {
     setProcessingBackground(false);
     setSendButtonLoading(false);
-    sendButton.disabled = false;
+    setComposerBusy(false);
   }
 });
 
-const starterSystemMessage = routes.length
-  ? orchestratorUrl
-    ? "Get clear answers about court procedures, legal forms, and the court process."
-    : "Missing orchestrator URL in app-config.js. Re-run launch."
-  : "No hardcoded routes found. Run launch to generate app-config.js.";
-
-function addSitePickerMessage() {
-  const message = document.createElement("article");
-  message.className = "message system";
-
-  const textNode = document.createElement("div");
-  textNode.className = "content";
-
-  const intro = document.createElement("p");
-  intro.textContent = "Choose your primary site:";
-  textNode.appendChild(intro);
-
-  const pillContainer = document.createElement("div");
-  pillContainer.className = "site-picker-pills";
-
-  function updateActivePills(selectedSite) {
-    pillContainer.querySelectorAll(".site-pill").forEach((pill) => {
-      pill.classList.toggle("is-active", pill.dataset.siteValue === selectedSite);
-    });
-  }
-
-  function createPill(siteValue, label) {
-    const pill = document.createElement("button");
-    pill.type = "button";
-    pill.className = "site-pill";
-    pill.textContent = label;
-    pill.dataset.siteValue = siteValue;
-    pill.addEventListener("click", () => {
-      const selected = setSiteFilter(siteValue);
-      syncSiteFilterQueryString(selected);
-      updateActivePills(selected);
-      trackEvent("site_filter_toggled", {
-        site: toAnalyticsSiteFilter(selected),
-        trigger: "site_picker_pill",
-      });
-    });
-    return pill;
-  }
-
-  const allSites = [SITE_FILTER_ALL, ...AVAILABLE_SITE_FILTERS];
-  for (const siteValue of allSites) {
-    const label = siteValue === SITE_FILTER_ALL ? "All Sites" : siteValue;
-    pillContainer.appendChild(createPill(siteValue, label));
-  }
-
-  textNode.appendChild(pillContainer);
-  message.appendChild(textNode);
-  chatLog.appendChild(message);
-  chatLog.scrollTop = chatLog.scrollHeight;
-
-  // Reflect the current selection once the message is rendered.
-  updateActivePills(getSelectedSiteFilter());
-}
-
-if (routes.length && orchestratorUrl) {
-  starterMessageTimeoutId = window.setTimeout(() => {
-    starterMessageTimeoutId = null;
-    if (userHasSubmittedQuery) {
-      return;
-    }
-    addMessage("system", starterSystemMessage);
-    starterFollowupTimeoutId = window.setTimeout(() => {
-      starterFollowupTimeoutId = null;
-      if (userHasSubmittedQuery) {
-        return;
-      }
-      addSitePickerMessage();
-    }, STARTER_FOLLOWUP_MESSAGE_DELAY_MS);
-  }, STARTER_MESSAGE_DELAY_MS);
-} else {
-  addMessage("system", starterSystemMessage);
-}
-
-starterQueryTimeoutId = window.setTimeout(() => {
-  starterQueryTimeoutId = null;
-  if (userHasSubmittedQuery) {
-    return;
-  }
-  addStarterQueryMessage(STARTER_QUERIES);
-}, STARTER_QUERY_MESSAGE_DELAY_MS);
+renderWelcomeSitePills();
+renderComposerSiteMenu();
+renderWelcomeStarterCards();
+setWelcomePanelHidden(false);
 
 // Mobile: lock body scroll while the composer textarea is focused so the
 // browser cannot scroll the page when the keyboard opens. Without this, the

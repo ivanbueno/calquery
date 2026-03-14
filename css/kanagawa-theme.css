@@ -24,6 +24,7 @@
   --user: #dfe8dd;
 
   --accent: var(--cyan);
+  --accent-contrast: var(--base3);
   --message-assistant-accent: var(--cyan);
   --focus-glow: rgba(53, 104, 103, 0.16);
   --grain-opacity: 0.022;
