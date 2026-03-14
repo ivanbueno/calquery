@@ -400,7 +400,7 @@ a.brand-text:active {
   display: grid;
   width: min(100%, var(--chat-column-max-width));
   max-width: 100%;
-  gap: 1rem;
+  gap: 1.5rem;
   padding: 0;
   margin: 0 auto 0 0;
   background: none;
@@ -422,7 +422,7 @@ a.brand-text:active {
 
 .welcome-copy {
   display: grid;
-  gap: 0.42rem;
+  gap: 0.72rem;
   max-width: 42rem;
   margin-top: 0.42rem;
 }
@@ -2097,7 +2097,7 @@ button:disabled {
   color: var(--blue);
   text-decoration: none;
   border-bottom: 1px solid rgba(31, 75, 110, 0.28);
-  padding-bottom: 1px;
+  padding-bottom: 10px;
   transition: border-color 160ms ease, color 160ms ease;
 }
 
