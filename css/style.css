@@ -424,6 +424,7 @@ a.brand-text:active {
   display: grid;
   gap: 0.42rem;
   max-width: 42rem;
+  margin-top: 0.42rem;
 }
 
 .welcome-eyebrow {
@@ -520,12 +521,6 @@ a.brand-text:active {
   text-transform: uppercase;
   padding-block: 0.08rem;
   overflow: visible;
-}
-
-.welcome-control-value {
-  color: var(--accent);
-  font-size: 0.74rem;
-  font-weight: 700;
 }
 
 .starter-card-grid {
