@@ -513,6 +513,34 @@ function setWelcomePanelHidden(isHidden) {
     return;
   }
   const hidden = Boolean(isHidden);
+
+  if (hidden && !welcomePanel.hidden) {
+    if (pageBody) {
+      pageBody.classList.remove("welcome-active");
+    }
+    if (isMobileViewport() && typeof window !== "undefined") {
+      window.scrollTo(0, 0);
+    }
+    const anim = welcomePanel.animate(
+      [
+        { opacity: 1, transform: "translateY(0) scale(1)" },
+        { opacity: 0, transform: "translateY(-10px) scale(0.985)" },
+      ],
+      { duration: 200, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" }
+    );
+    anim.finished.then(() => {
+      const fullHeight = welcomePanel.offsetHeight;
+      welcomePanel.style.overflow = "hidden";
+      welcomePanel.animate(
+        [{ height: fullHeight + "px" }, { height: "0px" }],
+        { duration: 340, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" }
+      ).finished.then(() => {
+        welcomePanel.hidden = true;
+      });
+    });
+    return;
+  }
+
   welcomePanel.hidden = hidden;
 
   if (pageBody) {
@@ -1306,6 +1334,10 @@ function createLiveAssistantStream(metaText, options = {}) {
   let metaNode = null;
   let feedbackNode = null;
 
+  const streamingCursor = document.createElement("span");
+  streamingCursor.className = "streaming-cursor";
+  streamingCursor.setAttribute("aria-hidden", "true");
+
   function ensureMetaNode() {
     if (metaNode) {
       return metaNode;
@@ -1374,12 +1406,15 @@ function createLiveAssistantStream(metaText, options = {}) {
       }
       answerText += nextChunk;
       textNode.innerHTML = renderMarkdown(answerText);
+      const lastEl = textNode.lastElementChild;
+      (lastEl || textNode).appendChild(streamingCursor);
       chatLog.scrollTop = chatLog.scrollHeight;
     },
     finalize(finalAnswer) {
       if (typeof finalAnswer === "string" && finalAnswer.length) {
         answerText = finalAnswer;
       }
+      streamingCursor.remove();
       textNode.innerHTML = renderMarkdown(answerText);
       finalized = true;
       alignAssistantMessage(message);
@@ -2261,6 +2296,7 @@ function addSourcesMessage(sources) {
   if (previousAssistant) {
     previousAssistant.classList.add("assistant-with-sources-shelf");
   }
+
 }
 
 function toFeedbackSiteFilter(siteValue) {
