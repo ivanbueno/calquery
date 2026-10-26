@@ -31,6 +31,10 @@ const composerSiteMenu = document.getElementById("composerSiteMenu");
 const footerYear = document.getElementById("footerYear");
 const settingsToggle = document.getElementById("settingsToggle");
 const settingsPanel = document.getElementById("settingsPanel");
+const settingsClose = document.getElementById("settingsClose");
+const welcomeComposerSlot = document.getElementById("welcomeComposerSlot");
+const composerHome = composer ? composer.parentNode : null;
+const composerHomeAnchor = composer ? composer.nextSibling : null;
 const toggleRoutingMeta = document.getElementById("toggleRoutingMeta");
 const themeSelect = document.getElementById("themeSelect");
 const siteSelect = document.getElementById("siteSelect");
@@ -52,6 +56,7 @@ let brandLogoSyncRafId = null;
 let userHasSubmittedQuery = false;
 let composerBusy = false;
 let welcomeTransitionId = 0;
+let answerStepsSequence = 0;
 const ROUTING_META_HIDDEN_CLASS = "hide-routing-meta";
 const ROUTING_META_STORAGE_KEY = "calquery-routing-meta-visible";
 const SHOW_INSUFFICIENT_STORAGE_KEY = "calquery-show-insufficient";
@@ -87,7 +92,6 @@ const THEME_FONT_STYLESHEET_ID = "themeFontStylesheet";
 const SUPPLEMENTAL_THEME_FONT_STYLESHEET_HREF =
   "https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@700;800&family=Lato:wght@400;700;900&family=Lora:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap";
 const THEMES_WITH_LIGHT_LOGO = new Set([
-  THEME_DEFAULT,
   THEME_GRUVBOX_DARK,
   THEME_COURTYARD,
   THEME_GRAYSCALE,
@@ -512,12 +516,33 @@ function renderWelcomeStarterCards() {
   });
 }
 
+function placeComposer(inWelcome) {
+  if (!composer || !welcomeComposerSlot || !composerHome) {
+    return;
+  }
+  const target = inWelcome ? welcomeComposerSlot : composerHome;
+  if (composer.parentNode === target) {
+    return;
+  }
+  const hadFocus = composer.contains(document.activeElement) ? document.activeElement : null;
+  if (inWelcome) {
+    welcomeComposerSlot.appendChild(composer);
+  } else {
+    composerHome.insertBefore(composer, composerHomeAnchor);
+  }
+  composer.classList.toggle("is-docked", !inWelcome);
+  if (hadFocus) {
+    hadFocus.focus({ preventScroll: true });
+  }
+}
+
 function setWelcomePanelHidden(isHidden) {
   if (!welcomePanel) {
     return;
   }
   const hidden = Boolean(isHidden);
   const transitionId = ++welcomeTransitionId;
+  placeComposer(!hidden);
   if (queryInput) {
     queryInput.placeholder = hidden ? "Ask a follow-up question…" : "What would you like to understand?";
   }
@@ -605,7 +630,19 @@ function syncComposerState() {
 
 function setComposerBusy(isBusy) {
   composerBusy = Boolean(isBusy);
-  for (const button of newChatButtons) {
+  if (typeof window.matchMedia === "function") {
+  const colorSchemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  const syncDefaultThemeLogo = () => {
+    if (!rootElement.hasAttribute("data-theme")) {
+      syncBrandLogo(THEME_DEFAULT);
+    }
+  };
+  if (typeof colorSchemeQuery.addEventListener === "function") {
+    colorSchemeQuery.addEventListener("change", syncDefaultThemeLogo);
+  }
+}
+
+for (const button of newChatButtons) {
     button.disabled = composerBusy;
   }
   chatLog.setAttribute("aria-busy", String(composerBusy));
@@ -1314,10 +1351,21 @@ function findPreviousAssistantMessage(startNode) {
   return null;
 }
 
+function enhanceAnswerContent(textNode) {
+  if (typeof enhanceAnswerSteps !== "function") {
+    return;
+  }
+  answerStepsSequence += 1;
+  enhanceAnswerSteps(textNode, `answer-${answerStepsSequence}-step`);
+}
+
 function addMessage(role, text, metaText, options = {}) {
   const { message, textNode } = createMessageElements(role, metaText, options);
   if (role === "assistant" || options.renderMarkdown === true) {
     textNode.innerHTML = renderMarkdown(text);
+    if (role === "assistant") {
+      enhanceAnswerContent(textNode);
+    }
   } else {
     textNode.textContent = text;
   }
@@ -1456,6 +1504,7 @@ function createLiveAssistantStream(metaText, options = {}) {
       }
       streamingCursor.remove();
       textNode.innerHTML = renderMarkdown(answerText);
+      enhanceAnswerContent(textNode);
       finalized = true;
       alignAssistantMessage(message);
       return answerText;
@@ -1663,6 +1712,25 @@ function ensureThemeFonts(themeName) {
   }
 }
 
+// The default theme follows the system light/dark setting, so its logo does too.
+function prefersDarkColorScheme() {
+  return typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+function syncBrandLogo(themeName) {
+  if (!brandLogo) {
+    return;
+  }
+  const useLightLogo = themeName === THEME_DEFAULT
+    ? prefersDarkColorScheme()
+    : THEMES_WITH_LIGHT_LOGO.has(themeName);
+  const nextLogoSrc = useLightLogo ? BRAND_LOGO_LIGHT_SRC : BRAND_LOGO_DEFAULT_SRC;
+  if (brandLogo.getAttribute("src") !== nextLogoSrc) {
+    brandLogo.setAttribute("src", nextLogoSrc);
+  }
+  requestBrandLogoHeightSync();
+}
+
 function setTheme(themeName, options = {}) {
   const selectedTheme = normalizeThemeName(themeName);
   const shouldPersist = options.persist !== false;
@@ -1681,15 +1749,7 @@ function setTheme(themeName, options = {}) {
     themeSelect.value = selectedTheme;
   }
 
-  if (brandLogo) {
-    const nextLogoSrc = THEMES_WITH_LIGHT_LOGO.has(selectedTheme)
-      ? BRAND_LOGO_LIGHT_SRC
-      : BRAND_LOGO_DEFAULT_SRC;
-    if (brandLogo.getAttribute("src") !== nextLogoSrc) {
-      brandLogo.setAttribute("src", nextLogoSrc);
-    }
-  }
-  requestBrandLogoHeightSync();
+  syncBrandLogo(selectedTheme);
 
   if (shouldPersist) {
     try {
@@ -1702,13 +1762,22 @@ function setTheme(themeName, options = {}) {
   return selectedTheme;
 }
 
-function setSettingsPanelOpen(isOpen) {
+function setSettingsPanelOpen(isOpen, options = {}) {
   if (!settingsToggle || !settingsPanel) {
     return;
   }
   const open = Boolean(isOpen);
+  const wasOpen = !settingsPanel.hidden;
   settingsPanel.hidden = !open;
   settingsToggle.setAttribute("aria-expanded", String(open));
+  if (pageBody) {
+    pageBody.classList.toggle("settings-page-open", open);
+  }
+  if (open && !wasOpen && settingsClose) {
+    settingsClose.focus();
+  } else if (!open && wasOpen && options.restoreFocus) {
+    settingsToggle.focus();
+  }
 }
 
 function loadRoutingMetaPreference() {
@@ -1992,16 +2061,42 @@ if (settingsToggle && settingsPanel) {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || settingsPanel.hidden) {
+    if (settingsPanel.hidden) {
       return;
     }
-    setSettingsPanelOpen(false);
+    if (event.key === "Tab") {
+      const controls = Array.from(settingsPanel.querySelectorAll("button, select, input, a[href]"))
+        .filter((control) => !control.disabled && control.offsetParent !== null);
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+      return;
+    }
+    if (event.key !== "Escape") {
+      return;
+    }
+    setSettingsPanelOpen(false, { restoreFocus: true });
     trackEvent("settings_panel_toggled", {
       open: 0,
       trigger: "escape_key",
     });
-    settingsToggle.focus();
   });
+
+  if (settingsClose) {
+    settingsClose.addEventListener("click", () => {
+      setSettingsPanelOpen(false, { restoreFocus: true });
+      trackEvent("settings_panel_toggled", {
+        open: 0,
+        trigger: "close_button",
+      });
+    });
+  }
 }
 
 function parseLambdaPayload(payload) {
@@ -2317,7 +2412,7 @@ function addSourcesMessage(sources) {
 
   const heading = document.createElement("span");
   heading.className = "sources-title";
-  heading.textContent = "Sources";
+  heading.textContent = "Official sources";
 
   const count = document.createElement("span");
   count.className = "sources-count";
@@ -2506,13 +2601,20 @@ function createFeedbackIcon(rating) {
 
   if (rating === FEEDBACK_RATING_UP) {
     icon.innerHTML =
-      '<svg viewBox="0 0 24 24" role="img" focusable="false"><path d="M1 21h4V9H1v12zM23 10c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14 1 7.59 7.41C7.22 7.78 7 8.3 7 8.83V19c0 1.1.9 2 2 2h9c.82 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"></path></svg>';
+      '<svg viewBox="0 0 24 24" focusable="false"><path d="M7 11v9H4v-9h3Zm0 0 4-8a2 2 0 0 1 2 2v4h5a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 16.8 20H7"></path></svg>';
     return icon;
   }
 
   icon.innerHTML =
-    '<svg viewBox="0 0 24 24" role="img" focusable="false"><path d="M15 3H6c-.82 0-1.54.5-1.84 1.22L1.14 11.27c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L10 23l6.41-6.41c.37-.37.59-.89.59-1.42V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"></path></svg>';
+    '<svg viewBox="0 0 24 24" focusable="false"><path d="M17 13V4h3v9h-3Zm0 0-4 8a2 2 0 0 1-2-2v-4H6a2 2 0 0 1-2-2.3l1.2-7A2 2 0 0 1 7.2 4H17"></path></svg>';
   return icon;
+}
+
+function createFeedbackLabel(text) {
+  const label = document.createElement("span");
+  label.className = "feedback-button-label";
+  label.textContent = text;
+  return label;
 }
 
 function createFeedbackControls(feedbackContext) {
@@ -2527,9 +2629,8 @@ function createFeedbackControls(feedbackContext) {
   const copyButton = document.createElement("button");
   copyButton.type = "button";
   copyButton.className = "feedback-button copy-answer";
-  copyButton.title = "Copy answer";
-  copyButton.setAttribute("aria-label", "Copy answer");
-  copyButton.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/></svg>';
+  copyButton.innerHTML = '<span class="feedback-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg></span>';
+  copyButton.appendChild(createFeedbackLabel("Copy answer"));
   const copyStatus = document.createElement("span");
   copyStatus.className = "answer-feedback-status";
   copyStatus.setAttribute("aria-live", "polite");
@@ -2549,16 +2650,12 @@ function createFeedbackControls(feedbackContext) {
   const upButton = document.createElement("button");
   upButton.type = "button";
   upButton.className = "feedback-button feedback-up";
-  upButton.appendChild(createFeedbackIcon(FEEDBACK_RATING_UP));
-  upButton.setAttribute("title", "Thumbs up");
-  upButton.setAttribute("aria-label", "Submit thumbs up feedback");
+  upButton.append(createFeedbackIcon(FEEDBACK_RATING_UP), createFeedbackLabel("Helpful"));
 
   const downButton = document.createElement("button");
   downButton.type = "button";
   downButton.className = "feedback-button feedback-down";
-  downButton.appendChild(createFeedbackIcon(FEEDBACK_RATING_DOWN));
-  downButton.setAttribute("title", "Thumbs down");
-  downButton.setAttribute("aria-label", "Submit thumbs down feedback");
+  downButton.append(createFeedbackIcon(FEEDBACK_RATING_DOWN), createFeedbackLabel("Not helpful"));
 
   const status = document.createElement("span");
   status.className = "answer-feedback-status";

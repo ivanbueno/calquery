@@ -57,124 +57,37 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&family=Source+Code+Pro:wght@400;500&display=swap" as="style" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&family=Source+Code+Pro:wght@400;500&display=swap" media="print" onload="this.media='all'" />
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" as="style" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" media="print" onload="this.media='all'" />
   <noscript>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&family=Source+Code+Pro:wght@400;500&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" />
   </noscript>
   <link rel="icon" type="image/png" sizes="64x64" href="./images/bear-logo-soft-64.png?v=1" />
   <link rel="apple-touch-icon" sizes="192x192" href="./images/bear-logo-soft-192.png?v=1" />
   <link rel="stylesheet" href="./css/style.css" />
-  <link rel="stylesheet" href="./css/midnight.css" />
+  <link rel="stylesheet" href="./css/plain-words.css" />
   <script defer src="./js/app-config.js?v=9375c99e1eeb"></script>
   <script defer src="./js/conversation-memory.js?v=8dfefcc11da7"></script>
-  <script defer src="./js/app.js?v=33c910da8060"></script>
+  <script defer src="./js/answer-steps.js?v=6a197cd00242"></script>
+  <script defer src="./js/app.js?v=f63534f2013a"></script>
 </head>
 <body>
   <a class="skip-link" href="#queryInput">Skip to your question</a>
   <div class="page-layout">
-    <nav class="workspace-rail" aria-label="Workspace">
-      <a class="rail-brand" href="/" aria-label="CalQuery home">cq.</a>
-      <button class="rail-button" type="button" data-new-chat aria-label="New conversation" title="New conversation">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-      </button>
-      <span class="rail-divider" aria-hidden="true"></span>
-      <a class="rail-button rail-current" href="#queryInput" aria-label="Current conversation" title="Current conversation">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M21 11a9 9 0 0 1-9 9H4l-2 2V11a9 9 0 0 1 19 0Z"/><path d="M7 10h10m-10 4h7"/></svg>
-      </a>
-      <button class="rail-button" type="button" data-info-toggle aria-label="About CalQuery" aria-controls="infoDrawer" aria-expanded="false" title="About CalQuery">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1Zm0 0v14"/></svg>
-      </button>
-      <span class="rail-location" aria-hidden="true">CA</span>
-    </nav>
     <main class="chat-shell">
       <header class="chat-header">
-        <button class="header-new-chat" type="button" data-new-chat aria-label="New chat" title="New chat">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-        </button>
-        <button
-          id="infoToggle"
-          class="info-toggle"
-          type="button"
-          aria-label="Open info panel"
-          aria-controls="infoDrawer"
-          aria-expanded="false"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-          </svg>
-        </button>
-        <button
-          id="settingsToggle"
-          class="settings-toggle"
-          type="button"
-          aria-label="Open display settings"
-          aria-controls="settingsPanel"
-          aria-expanded="false"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.62.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.16 7.16 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.49-.42h-3.84a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.12.53-1.63.94l-2.39-.96a.5.5 0 0 0-.61.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.62-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .61.22l2.39-.96c.5.41 1.05.73 1.63.94l.36 2.54a.5.5 0 0 0 .49.42h3.84a.5.5 0 0 0 .49-.42l.36-2.54c.58-.22 1.12-.53 1.63-.94l2.39.96a.5.5 0 0 0 .61-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/>
-          </svg>
-        </button>
-        <div id="settingsPanel" class="settings-panel" hidden>
-          <label class="settings-option settings-control" for="siteSelect">
-            <span>Site</span>
-            <select id="siteSelect" name="site">
-              <option value="__all__">All Sites</option>
-            </select>
-          </label>
-          <label class="settings-option settings-control" for="themeSelect">
-            <span>Theme</span>
-            <select id="themeSelect" name="theme">
-              <option value="default">Midnight (default)</option>
-              <option value="kanagawa">Kanagawa</option>
-              <option value="gruvbox-dark">Gruvbox Dark</option>
-              <option value="courtyard">Courtyard</option>
-              <option value="grayscale">Grayscale</option>
-            </select>
-          </label>
-          <label id="personaRow" class="settings-option settings-control" for="personaSelect" hidden>
-            <span>Persona</span>
-            <select id="personaSelect" name="persona">
-              <option value="default">Default</option>
-              <option value="saul-goodman">Saul Goodman</option>
-              <option value="judge-judy">Judge Judy</option>
-              <option value="ally-mcbeal">Ally McBeal</option>
-              <option value="vincent-gambini">Vincent Gambini</option>
-              <option value="jeff-winger">Jeff Winger</option>
-            </select>
-          </label>
-          <label class="settings-option" for="showInsufficientCheckbox">
-            <input type="checkbox" id="showInsufficientCheckbox" name="showInsufficient" />
-            <span>Show insufficient answers</span>
-          </label>
-          <div class="settings-option settings-action">
-            <button id="newChatButton" class="clear-cache-button" data-new-chat type="button">New chat</button>
-            <button id="clearCacheButton" class="clear-cache-button" type="button">
-              <svg class="clear-cache-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path fill="currentColor" d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5-1-1h-5l-1 1H5v2h14V4h-3.5z"/>
-              </svg>
-              <span class="clear-cache-label">Clear cache</span>
-            </button>
-            <button id="personaToggle" class="persona-toggle-button" type="button" aria-label="Toggle persona selector" aria-pressed="false">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-              </svg>
-            </button>
-          </div>
-        </div>
         <div class="brand">
-          <a class="brand-logo-link" href="/" aria-label="Go to home">
+          <span class="brand-logo-link" aria-hidden="true">
             <img
               class="brand-logo"
-              src="./images/bear-logo-light-192.webp?v=2"
-              alt="Bear logo"
-              width="56"
-              height="56"
+              src="./images/bear-logo-soft-192.webp?v=2"
+              alt=""
+              width="28"
+              height="28"
               decoding="async"
               fetchpriority="high"
             />
-          </a>
+          </span>
           <a class="brand-text" href="/">
             <h1>
               <span class="brand-title-main">CalQuery</span><span class="brand-title-separator" aria-hidden="true">→</span><span class="brand-title-site">All Sites</span>
@@ -182,41 +95,103 @@
             <p class="header-lead">California Courts Assistant</p>
           </a>
         </div>
+        <nav class="header-actions" aria-label="CalQuery">
+          <button class="header-new-chat word-button" type="button" data-new-chat>
+            <svg class="word-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            <span class="word-label">New</span>
+          </button>
+          <button id="infoToggle" class="info-toggle word-button" type="button" aria-haspopup="dialog" aria-controls="infoDrawer" aria-expanded="false">
+            <svg class="word-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg>
+            <span class="word-label">About</span>
+          </button>
+          <button id="settingsToggle" class="settings-toggle word-button" type="button" aria-haspopup="dialog" aria-controls="settingsPanel" aria-expanded="false">
+            <svg class="word-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10m4 0h2M4 17h4m4 0h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+            <span class="word-label">Settings</span>
+          </button>
+        </nav>
+        <div id="settingsPanel" class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" hidden>
+          <div class="settings-page">
+            <div class="settings-head">
+              <h2 id="settingsTitle">Display settings</h2>
+              <button id="settingsClose" class="word-button" type="button">
+                <svg class="word-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                <span>Close</span>
+              </button>
+            </div>
+            <label class="settings-option settings-control" for="siteSelect">
+              <span>Site</span>
+              <select id="siteSelect" name="site">
+                <option value="__all__">All Sites</option>
+              </select>
+            </label>
+            <label class="settings-option settings-control" for="themeSelect">
+              <span>Theme</span>
+              <select id="themeSelect" name="theme">
+                <option value="default">Plain Words (default)</option>
+                <option value="kanagawa">Kanagawa</option>
+                <option value="gruvbox-dark">Gruvbox Dark</option>
+                <option value="courtyard">Courtyard</option>
+                <option value="grayscale">Grayscale</option>
+              </select>
+            </label>
+            <label id="personaRow" class="settings-option settings-control" for="personaSelect" hidden>
+              <span>Persona</span>
+              <select id="personaSelect" name="persona">
+                <option value="default">Default</option>
+                <option value="saul-goodman">Saul Goodman</option>
+                <option value="judge-judy">Judge Judy</option>
+                <option value="ally-mcbeal">Ally McBeal</option>
+                <option value="vincent-gambini">Vincent Gambini</option>
+                <option value="jeff-winger">Jeff Winger</option>
+              </select>
+            </label>
+            <label class="settings-option" for="showInsufficientCheckbox">
+              <input type="checkbox" id="showInsufficientCheckbox" name="showInsufficient" />
+              <span>Show insufficient answers</span>
+            </label>
+            <div class="settings-option settings-action">
+              <button id="newChatButton" class="clear-cache-button" data-new-chat type="button"><svg class="word-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>New chat</span></button>
+              <button id="clearCacheButton" class="clear-cache-button" type="button">
+                <svg class="clear-cache-icon word-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>
+                <span class="clear-cache-label">Clear cache</span>
+              </button>
+              <button id="personaToggle" class="persona-toggle-button" type="button" aria-label="Toggle persona selector" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
       </header>
 
       <section id="chatLog" class="chat-log" aria-label="Conversation" aria-busy="false">
         <section id="welcomePanel" class="welcome-panel" aria-labelledby="welcomeTitle">
           <div class="welcome-copy">
-            <p class="welcome-eyebrow">California courts. Clarified.</p>
-            <h2 id="welcomeTitle">A little clarity.<br>A next step.</h2>
+            <p class="welcome-eyebrow">Answers from California's official court websites</p>
+            <h2 id="welcomeTitle">Dealing with a California court?<br>Find out what to do, and by when.</h2>
             <p class="welcome-description">
-              Ask about California court forms and procedures. Get plain-language guidance grounded in official sources.
+              Ask about forms, deadlines, fee waivers, hearings, jury duty, the Rules of Court, or recent court news. Every answer cites the court page it came from.
             </p>
           </div>
 
-          <div class="welcome-controls">
-            <section class="welcome-control-block" aria-labelledby="welcomeSiteLabel">
-              <div class="welcome-control-heading-row">
-                <p id="welcomeSiteLabel" class="welcome-control-label">Focus your search</p>
-              </div>
-              <div id="welcomeSitePills" class="site-picker-pills site-picker-pills-welcome"></div>
-            </section>
+          <div id="welcomeComposerSlot" class="welcome-composer-slot"></div>
 
-            <section class="welcome-control-block" aria-labelledby="welcomeStarterLabel">
-              <div class="welcome-control-heading-row">
-                <p id="welcomeStarterLabel" class="welcome-control-label">Try a starter question</p>
-              </div>
-              <div id="starterCardGrid" class="starter-card-grid"></div>
-            </section>
-          </div>
-          <p class="welcome-trust"><span aria-hidden="true">✓</span> Official sources, whenever you need them.</p>
+          <section class="welcome-starters" aria-labelledby="welcomeStarterLabel">
+            <h3 id="welcomeStarterLabel" class="welcome-control-label">Try a starter question</h3>
+            <div id="starterCardGrid" class="starter-card-grid"></div>
+          </section>
+          <p class="welcome-trust">Official sources, whenever you need them.</p>
         </section>
       </section>
 
       <form id="composer" class="composer">
         <div class="composer-shell">
-          <div class="composer-toolbar">
+          <label class="composer-label" for="queryInput">Ask a question</label>
+          <textarea id="queryInput" rows="1" placeholder="What would you like to understand?"></textarea>
+          <div class="composer-line">
             <div class="composer-context">
+              <svg class="word-icon composer-context-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.2"/></svg>
               <span class="composer-context-label">Searching</span>
               <div class="composer-context-picker">
                 <button
@@ -229,33 +204,24 @@
                   aria-controls="composerSiteMenu"
                 >
                   <span id="composerSiteBadgeLabel">Self Help</span>
-                  <svg class="composer-context-pill-icon" viewBox="0 0 20 20" aria-hidden="true">
-                    <path fill="currentColor" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.12l3.71-3.89a.75.75 0 1 1 1.08 1.04l-4.25 4.46a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z"/>
-                  </svg>
                 </button>
                 <div id="composerSiteMenu" class="composer-site-menu" role="menu" aria-label="Choose site focus" hidden></div>
               </div>
             </div>
+            <div class="actions">
+              <button id="sendButton" type="submit">
+                <span class="send-label">Ask</span>
+                <svg class="send-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
+              </button>
+            </div>
           </div>
-          <textarea id="queryInput" placeholder="What would you like to understand?" aria-label="Ask a question"></textarea>
-          <div class="actions">
-            <button id="sendButton" type="submit" aria-label="Ask question">
-              <span class="send-icon-badge" aria-hidden="true">
-                <svg class="send-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 19V5m-5 5 5-5 5 5"/>
-                </svg>
-              </span>
-              <span class="send-label">Ask</span>
-            </button>
-          </div>
-          <p class="composer-hint">Enter to ask <span aria-hidden="true">·</span> Shift + Enter for a new line</p>
         </div>
       </form>
 
       <footer class="chat-footer">
         <p class="footer-copy">&copy; <span id="footerYear"></span> CalQuery. All rights reserved.</p>
         <p class="footer-disclaimer">General legal information only; not legal advice. Verify with official court sources or a qualified attorney.</p>
-        <p class="footer-inquiries"><a href="mailto:dev@ivanbueno.com">dev@ivanbueno.com</a></p>
+        <p class="footer-inquiries"><a href="mailto:dev@ivanbueno.com"><svg class="word-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/></svg><span>dev@ivanbueno.com</span></a></p>
       </footer>
     </main>
   </div>
@@ -264,11 +230,10 @@
 
   <aside class="info" id="infoDrawer" role="dialog" aria-modal="true" aria-labelledby="info-title" aria-hidden="true" inert>
     <div class="info-drawer-header">
-      <h2 id="info-title">California Courts. Clarified.</h2>
-      <button class="info-drawer-close" id="infoDrawerClose" type="button" aria-label="Close info panel">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-        </svg>
+      <h2 id="info-title">About CalQuery</h2>
+      <button class="info-drawer-close word-button" id="infoDrawerClose" type="button">
+        <svg class="word-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        <span>Close</span>
       </button>
     </div>
     <div class="info-accordion" role="presentation">
