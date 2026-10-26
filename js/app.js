@@ -38,6 +38,8 @@ const personaSelect = document.getElementById("personaSelect");
 const personaRow = document.getElementById("personaRow");
 const personaToggle = document.getElementById("personaToggle");
 const clearCacheButton = document.getElementById("clearCacheButton");
+const newChatButton = document.getElementById("newChatButton");
+const conversationMemory = new ConversationMemory();
 const showInsufficientCheckbox = document.getElementById("showInsufficientCheckbox");
 const brandLogo = document.querySelector(".brand-logo");
 const brandText = document.querySelector(".brand-text");
@@ -49,6 +51,7 @@ let chatScrollRafId = null;
 let brandLogoSyncRafId = null;
 let userHasSubmittedQuery = false;
 let composerBusy = false;
+let welcomeTransitionId = 0;
 const ROUTING_META_HIDDEN_CLASS = "hide-routing-meta";
 const ROUTING_META_STORAGE_KEY = "calquery-routing-meta-visible";
 const SHOW_INSUFFICIENT_STORAGE_KEY = "calquery-show-insufficient";
@@ -513,6 +516,13 @@ function setWelcomePanelHidden(isHidden) {
     return;
   }
   const hidden = Boolean(isHidden);
+  const transitionId = ++welcomeTransitionId;
+
+  if (!hidden) {
+    welcomePanel.getAnimations().forEach((animation) => animation.cancel());
+    welcomePanel.style.height = "";
+    welcomePanel.style.overflow = "";
+  }
 
   if (hidden && !welcomePanel.hidden) {
     if (pageBody) {
@@ -529,15 +539,20 @@ function setWelcomePanelHidden(isHidden) {
       { duration: 200, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" }
     );
     anim.finished.then(() => {
+      if (transitionId !== welcomeTransitionId) {
+        return;
+      }
       const fullHeight = welcomePanel.offsetHeight;
       welcomePanel.style.overflow = "hidden";
       welcomePanel.animate(
         [{ height: fullHeight + "px" }, { height: "0px" }],
         { duration: 340, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" }
       ).finished.then(() => {
-        welcomePanel.hidden = true;
-      });
-    });
+        if (transitionId === welcomeTransitionId) {
+          welcomePanel.hidden = true;
+        }
+      }).catch(() => {});
+    }).catch(() => {});
     return;
   }
 
@@ -585,6 +600,9 @@ function syncComposerState() {
 
 function setComposerBusy(isBusy) {
   composerBusy = Boolean(isBusy);
+  if (newChatButton) {
+    newChatButton.disabled = composerBusy;
+  }
   syncComposerState();
 }
 
@@ -1889,6 +1907,23 @@ if (composerSiteBadge && composerSiteMenu) {
   });
 }
 
+if (newChatButton) {
+  newChatButton.addEventListener("click", () => {
+    if (composerBusy) {
+      return;
+    }
+    conversationMemory.clear();
+    chatLog.replaceChildren(...(welcomePanel ? [welcomePanel] : []));
+    userHasSubmittedQuery = false;
+    queryInput.value = "";
+    resizeComposerInput();
+    syncComposerState();
+    setWelcomePanelHidden(false);
+    setSettingsPanelOpen(false);
+    focusQueryInput();
+  });
+}
+
 if (clearCacheButton) {
   const clearCacheLabel = clearCacheButton.querySelector(".clear-cache-label");
   clearCacheButton.addEventListener("click", () => {
@@ -2680,12 +2715,12 @@ function clearResponseCache() {
   }
 }
 
-async function requestOrchestrator(query, siteFilter, persona, handlers = {}) {
+async function requestOrchestrator(query, siteFilter, persona, handlers = {}, history = []) {
   if (!orchestratorUrl) {
     throw new Error("Missing orchestrator function URL. Run launch to update app-config.js.");
   }
 
-  const requestPayload = { query };
+  const requestPayload = { query, history };
   const selectedSite = getRequestSiteFilter(siteFilter);
   const selectedPersona = normalizePersonaName(persona);
   if (selectedSite) {
@@ -2731,7 +2766,7 @@ async function requestOrchestrator(query, siteFilter, persona, handlers = {}) {
   return { mode: "json", result: normalized };
 }
 
-async function executeQuery(query, siteFilter, persona, liveAssistant) {
+async function executeQuery(query, siteFilter, persona, liveAssistant, history = []) {
   let routeDetails = null;
   let routeMessageRendered = false;
   let streamRoute = null;
@@ -2769,7 +2804,7 @@ async function executeQuery(query, siteFilter, persona, liveAssistant) {
         streamRoute = payload.route;
       }
     },
-  });
+  }, history);
 
   if (orchestratorResponse.mode === "stream") {
     if (!routeDetails && streamRoute) {
@@ -2843,7 +2878,9 @@ composer.addEventListener("submit", async (event) => {
   nextSubmitTrigger = "send_button";
   const queryStartedAt = performance.now();
 
-  const cached = getCachedResponse(query, selectedSiteFilter, selectedPersona);
+  const history = conversationMemory.snapshot();
+  // A cached standalone answer must never replace a contextual follow-up.
+  const cached = history.length ? null : getCachedResponse(query, selectedSiteFilter, selectedPersona);
   trackEvent("query_submitted", {
     query_length: query.length,
     route_count: routes.length,
@@ -2904,6 +2941,7 @@ composer.addEventListener("submit", async (event) => {
       if (!isInsufficientAnswer) {
         addSourcesMessage(sources);
       }
+      conversationMemory.remember(query, answer);
       trackEvent("query_succeeded", {
         selected_index: routeDetails.selectedIndex || "none",
         routed_count: routeDetails.routedIndices.length || (routeDetails.selectedIndex ? 1 : 0),
@@ -2918,7 +2956,7 @@ composer.addEventListener("submit", async (event) => {
       return;
     }
 
-    let queryResult = await executeQuery(query, selectedSiteFilter, selectedPersona, liveAssistant);
+    let queryResult = await executeQuery(query, selectedSiteFilter, selectedPersona, liveAssistant, history);
     let { rawAnswer, sources, routeDetails, responseMode } = queryResult;
     let retriedAllSites = false;
 
@@ -2942,7 +2980,7 @@ composer.addEventListener("submit", async (event) => {
         query_length: query.length,
       });
       liveAssistant = createLiveAssistantStream("", { metaType: "routing" });
-      queryResult = await executeQuery(query, SITE_FILTER_ALL, selectedPersona, liveAssistant);
+      queryResult = await executeQuery(query, SITE_FILTER_ALL, selectedPersona, liveAssistant, history);
       rawAnswer = queryResult.rawAnswer;
       sources = queryResult.sources;
       routeDetails = queryResult.routeDetails;
@@ -2953,6 +2991,7 @@ composer.addEventListener("submit", async (event) => {
     const isInsufficientAnswer = isInsufficientInformationAnswer(rawAnswer);
     const answer = applyPersonaAnswerVoice(rawAnswer, selectedPersona);
     liveAssistant.finalize(answer);
+    conversationMemory.remember(query, answer);
     const effectiveSiteFilter = retriedAllSites ? SITE_FILTER_ALL : selectedSiteFilter;
     if (!isInsufficientAnswer) {
       liveAssistant.setFeedback(
@@ -2974,16 +3013,18 @@ composer.addEventListener("submit", async (event) => {
       addSourcesMessage(sources);
     }
 
-    const cacheSize = setCachedResponse(query, selectedSiteFilter, selectedPersona, {
-      answer: rawAnswer,
-      sources,
-      route: routeDetails ? routeDetails.route : {},
-    });
-    trackEvent("cache_entry_stored", {
-      answer_length: rawAnswer.length,
-      source_count: sources.length,
-      cache_size: cacheSize,
-    });
+    if (!history.length) {
+      const cacheSize = setCachedResponse(query, selectedSiteFilter, selectedPersona, {
+        answer: rawAnswer,
+        sources,
+        route: routeDetails ? routeDetails.route : {},
+      });
+      trackEvent("cache_entry_stored", {
+        answer_length: rawAnswer.length,
+        source_count: sources.length,
+        cache_size: cacheSize,
+      });
+    }
 
     const selectedIndex = routeDetails ? routeDetails.selectedIndex : "";
     const routedCount = routeDetails
