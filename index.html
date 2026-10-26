@@ -65,75 +65,33 @@
   <link rel="icon" type="image/png" sizes="64x64" href="./images/bear-logo-soft-64.png?v=1" />
   <link rel="apple-touch-icon" sizes="192x192" href="./images/bear-logo-soft-192.png?v=1" />
   <link rel="stylesheet" href="./css/style.css" />
-  <style>
-    /* Keep chat width/alignment close to ChatGPT Web conversation layout. */
-    .chat-shell {
-      --chat-column-max-width: 52rem;
-      --chat-side-padding: max(1rem, calc((100% - var(--chat-column-max-width)) / 2));
-    }
-
-    .chat-log {
-      padding-inline: var(--chat-side-padding);
-    }
-
-    .message {
-      max-width: 100%;
-    }
-
-    .message.assistant,
-    .message.system {
-      width: 100%;
-    }
-
-    .message.user {
-      width: fit-content;
-      max-width: min(70%, 36rem);
-      margin-left: auto;
-    }
-
-    .message.system.sources-message {
-      width: min(92%, 46rem);
-      max-width: 100%;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    @media (max-width: 980px) {
-      .chat-shell {
-        --chat-column-max-width: 46rem;
-      }
-
-      .message.user {
-        max-width: 82%;
-      }
-
-      .message.system.sources-message {
-        width: 90%;
-      }
-    }
-
-    @media (max-width: 700px) {
-      .chat-shell {
-        --chat-side-padding: 0.82rem;
-      }
-
-      .message.user {
-        max-width: 90%;
-      }
-
-      .message.system.sources-message {
-        width: 92%;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="./css/midnight.css" />
   <script defer src="./js/app-config.js?v=9375c99e1eeb"></script>
   <script defer src="./js/conversation-memory.js?v=8dfefcc11da7"></script>
-  <script defer src="./js/app.js?v=1e0b8b021c77"></script>
+  <script defer src="./js/app.js?v=37c51f84b545"></script>
 </head>
 <body>
+  <a class="skip-link" href="#queryInput">Skip to your question</a>
   <div class="page-layout">
+    <nav class="workspace-rail" aria-label="Workspace">
+      <a class="rail-brand" href="/" aria-label="CalQuery home">cq.</a>
+      <button class="rail-button" type="button" data-new-chat aria-label="New conversation" title="New conversation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <span class="rail-divider" aria-hidden="true"></span>
+      <a class="rail-button rail-current" href="#queryInput" aria-label="Current conversation" title="Current conversation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M21 11a9 9 0 0 1-9 9H4l-2 2V11a9 9 0 0 1 19 0Z"/><path d="M7 10h10m-10 4h7"/></svg>
+      </a>
+      <button class="rail-button" type="button" data-info-toggle aria-label="About CalQuery" aria-controls="infoDrawer" aria-expanded="false" title="About CalQuery">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1Zm0 0v14"/></svg>
+      </button>
+      <span class="rail-location" aria-hidden="true">CA</span>
+    </nav>
     <main class="chat-shell">
       <header class="chat-header">
+        <button class="header-new-chat" type="button" data-new-chat aria-label="New chat" title="New chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
         <button
           id="infoToggle"
           class="info-toggle"
@@ -168,7 +126,7 @@
           <label class="settings-option settings-control" for="themeSelect">
             <span>Theme</span>
             <select id="themeSelect" name="theme">
-              <option value="default">Default Theme</option>
+              <option value="default">Midnight (default)</option>
               <option value="kanagawa">Kanagawa</option>
               <option value="gruvbox-dark">Gruvbox Dark</option>
               <option value="courtyard">Courtyard</option>
@@ -187,11 +145,11 @@
             </select>
           </label>
           <label class="settings-option" for="showInsufficientCheckbox">
-            <input type="checkbox" id="showInsufficientCheckbox" name="showInsufficient" checked />
+            <input type="checkbox" id="showInsufficientCheckbox" name="showInsufficient" />
             <span>Show insufficient answers</span>
           </label>
           <div class="settings-option settings-action">
-            <button id="newChatButton" class="clear-cache-button" type="button">New chat</button>
+            <button id="newChatButton" class="clear-cache-button" data-new-chat type="button">New chat</button>
             <button id="clearCacheButton" class="clear-cache-button" type="button">
               <svg class="clear-cache-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path fill="currentColor" d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5-1-1h-5l-1 1H5v2h14V4h-3.5z"/>
@@ -209,7 +167,7 @@
           <a class="brand-logo-link" href="/" aria-label="Go to home">
             <img
               class="brand-logo"
-              src="./images/bear-logo-soft-192.webp?v=2"
+              src="./images/bear-logo-light-192.webp?v=2"
               alt="Bear logo"
               width="56"
               height="56"
@@ -218,38 +176,27 @@
             />
           </a>
           <a class="brand-text" href="/">
-            <p class="header-kicker">California Courts AI Assistant</p>
             <h1>
               <span class="brand-title-main">CalQuery</span><span class="brand-title-separator" aria-hidden="true">→</span><span class="brand-title-site">All Sites</span>
             </h1>
-            <p class="header-lead">Get clear court guidance from trusted official sources.</p>
+            <p class="header-lead">California Courts Assistant</p>
           </a>
         </div>
       </header>
 
-      <section id="chatLog" class="chat-log">
+      <div class="workspace-context">
+        <span><span class="context-dot" aria-hidden="true"></span> Grounded in official sources</span>
+        <span class="workspace-location">California / <span id="workspaceViewLabel">Start here</span></span>
+      </div>
+
+      <section id="chatLog" class="chat-log" aria-label="Conversation" aria-busy="false">
         <section id="welcomePanel" class="welcome-panel" aria-labelledby="welcomeTitle">
           <div class="welcome-copy">
-            <p class="welcome-eyebrow">Judicial Council of California Knowledge Base</p>
-            <h2 id="welcomeTitle">Ask in plain language. Get grounded answers with sources.</h2>
+            <p class="welcome-eyebrow">California courts. Clarified.</p>
+            <h2 id="welcomeTitle">A little clarity.<br>A next step.</h2>
             <p class="welcome-description">
-              CalQuery routes your question to the most relevant California court materials, then answers with plain-language guidance and links back to the record.
+              Ask about California court forms and procedures. Get plain-language guidance grounded in official sources.
             </p>
-          </div>
-
-          <div class="welcome-highlights" aria-label="Key product highlights">
-            <article class="welcome-highlight-card">
-              <p class="welcome-highlight-label">Grounded answers</p>
-              <p class="welcome-highlight-copy">Responses stay tied to official court documents and trusted self-help materials.</p>
-            </article>
-            <article class="welcome-highlight-card">
-              <p class="welcome-highlight-label">Transparent sources</p>
-              <p class="welcome-highlight-copy">Every answer can point you back to the source pages that support it.</p>
-            </article>
-            <article class="welcome-highlight-card">
-              <p class="welcome-highlight-label">Site-aware search</p>
-              <p class="welcome-highlight-copy">Start narrow on one court site or search across all indexed sources.</p>
-            </article>
           </div>
 
           <div class="welcome-controls">
@@ -267,6 +214,7 @@
               <div id="starterCardGrid" class="starter-card-grid"></div>
             </section>
           </div>
+          <p class="welcome-trust"><span aria-hidden="true">✓</span> Official sources, whenever you need them.</p>
         </section>
       </section>
 
@@ -294,17 +242,18 @@
               </div>
             </div>
           </div>
-          <textarea id="queryInput" placeholder="Ask about California court forms, deadlines, procedures, and next steps..." aria-label="Ask a question"></textarea>
-        </div>
-        <div class="actions">
-          <button id="sendButton" type="submit">
-            <span class="send-icon-badge" aria-hidden="true">
-              <svg class="send-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path fill="currentColor" d="M21.5 11.3 3.8 3.2a1 1 0 0 0-1.4 1l1.2 6.2a1 1 0 0 0 .8.8l8.1 1.3-8.1 1.3a1 1 0 0 0-.8.8L2.4 21a1 1 0 0 0 1.4 1l17.7-8.1a1.4 1.4 0 0 0 0-2.6Z"/>
-              </svg>
-            </span>
-            <span class="send-label">Ask</span>
-          </button>
+          <textarea id="queryInput" placeholder="What would you like to understand?" aria-label="Ask a question"></textarea>
+          <div class="actions">
+            <button id="sendButton" type="submit" aria-label="Ask question">
+              <span class="send-icon-badge" aria-hidden="true">
+                <svg class="send-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 19V5m-5 5 5-5 5 5"/>
+                </svg>
+              </span>
+              <span class="send-label">Ask</span>
+            </button>
+          </div>
+          <p class="composer-hint">Enter to ask <span aria-hidden="true">·</span> Shift + Enter for a new line</p>
         </div>
       </form>
 
@@ -318,7 +267,7 @@
 
   <div class="info-backdrop" id="infoBackdrop" aria-hidden="true"></div>
 
-  <aside class="info" id="infoDrawer" aria-labelledby="info-title">
+  <aside class="info" id="infoDrawer" role="dialog" aria-modal="true" aria-labelledby="info-title" aria-hidden="true" inert>
     <div class="info-drawer-header">
       <h2 id="info-title">California Courts. Clarified.</h2>
       <button class="info-drawer-close" id="infoDrawerClose" type="button" aria-label="Close info panel">
@@ -402,31 +351,38 @@
 
   <script>
     (function () {
-      var toggle = document.getElementById('infoToggle');
+      var toggles = Array.from(document.querySelectorAll('#infoToggle, [data-info-toggle]'));
       var drawer = document.getElementById('infoDrawer');
       var backdrop = document.getElementById('infoBackdrop');
       var closeBtn = document.getElementById('infoDrawerClose');
+      var opener = null;
 
-      function openDrawer() {
+      function openDrawer(trigger) {
+        opener = trigger;
+        drawer.inert = false;
+        drawer.setAttribute('aria-hidden', 'false');
         drawer.classList.add('is-open');
         backdrop.classList.add('is-open');
-        toggle.setAttribute('aria-expanded', 'true');
+        toggles.forEach(function (toggle) { toggle.setAttribute('aria-expanded', 'true'); });
         document.body.classList.add('info-drawer-open');
+        closeBtn.focus();
       }
 
       function closeDrawer() {
         drawer.classList.remove('is-open');
         backdrop.classList.remove('is-open');
-        toggle.setAttribute('aria-expanded', 'false');
+        toggles.forEach(function (toggle) { toggle.setAttribute('aria-expanded', 'false'); });
         document.body.classList.remove('info-drawer-open');
+        if (opener) opener.focus();
+        drawer.inert = true;
+        drawer.setAttribute('aria-hidden', 'true');
       }
 
-      toggle.addEventListener('click', function () {
-        if (drawer.classList.contains('is-open')) {
-          closeDrawer();
-        } else {
-          openDrawer();
-        }
+      toggles.forEach(function (toggle) {
+        toggle.addEventListener('click', function () {
+          if (drawer.classList.contains('is-open')) closeDrawer();
+          else openDrawer(toggle);
+        });
       });
 
       closeBtn.addEventListener('click', closeDrawer);
@@ -435,6 +391,18 @@
       document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape' && drawer.classList.contains('is-open')) {
           closeDrawer();
+        }
+        if (e.key === 'Tab' && drawer.classList.contains('is-open')) {
+          var controls = Array.from(drawer.querySelectorAll('button, a[href], summary, [tabindex="0"]'));
+          var first = controls[0];
+          var last = controls[controls.length - 1];
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
         }
       });
     })();

@@ -38,7 +38,8 @@ const personaSelect = document.getElementById("personaSelect");
 const personaRow = document.getElementById("personaRow");
 const personaToggle = document.getElementById("personaToggle");
 const clearCacheButton = document.getElementById("clearCacheButton");
-const newChatButton = document.getElementById("newChatButton");
+const newChatButtons = Array.from(document.querySelectorAll("[data-new-chat]"));
+const workspaceViewLabel = document.getElementById("workspaceViewLabel");
 const conversationMemory = new ConversationMemory();
 const showInsufficientCheckbox = document.getElementById("showInsufficientCheckbox");
 const brandLogo = document.querySelector(".brand-logo");
@@ -87,6 +88,7 @@ const THEME_FONT_STYLESHEET_ID = "themeFontStylesheet";
 const SUPPLEMENTAL_THEME_FONT_STYLESHEET_HREF =
   "https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@700;800&family=Lato:wght@400;700;900&family=Lora:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap";
 const THEMES_WITH_LIGHT_LOGO = new Set([
+  THEME_DEFAULT,
   THEME_GRUVBOX_DARK,
   THEME_COURTYARD,
   THEME_GRAYSCALE,
@@ -121,7 +123,7 @@ const AVAILABLE_SITE_FILTERS = extractSiteFilters(routes);
 const RESPONSE_CACHE_STORAGE_KEY = "calquery-response-cache";
 const RESPONSE_CACHE_MAX_ENTRIES = 50;
 const WELCOME_STARTER_CARD_COUNT = 4;
-const COMPOSER_TEXTAREA_MIN_HEIGHT_PX = 84;
+const COMPOSER_TEXTAREA_MIN_HEIGHT_PX = 44;
 const COMPOSER_TEXTAREA_MAX_HEIGHT_PX = 220;
 const FEEDBACK_RATING_UP = "up";
 const FEEDBACK_RATING_DOWN = "down";
@@ -517,6 +519,12 @@ function setWelcomePanelHidden(isHidden) {
   }
   const hidden = Boolean(isHidden);
   const transitionId = ++welcomeTransitionId;
+  if (workspaceViewLabel) {
+    workspaceViewLabel.textContent = hidden ? "Your answer" : "Start here";
+  }
+  if (queryInput) {
+    queryInput.placeholder = hidden ? "Ask a follow-up question…" : "What would you like to understand?";
+  }
 
   if (!hidden) {
     welcomePanel.getAnimations().forEach((animation) => animation.cancel());
@@ -524,7 +532,8 @@ function setWelcomePanelHidden(isHidden) {
     welcomePanel.style.overflow = "";
   }
 
-  if (hidden && !welcomePanel.hidden) {
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (hidden && !welcomePanel.hidden && !reduceMotion) {
     if (pageBody) {
       pageBody.classList.remove("welcome-active");
     }
@@ -600,9 +609,10 @@ function syncComposerState() {
 
 function setComposerBusy(isBusy) {
   composerBusy = Boolean(isBusy);
-  if (newChatButton) {
-    newChatButton.disabled = composerBusy;
+  for (const button of newChatButtons) {
+    button.disabled = composerBusy;
   }
+  chatLog.setAttribute("aria-busy", String(composerBusy));
   syncComposerState();
 }
 
@@ -1255,6 +1265,21 @@ function alignAssistantMessage(message) {
 function createMessageElements(role, metaText, options = {}) {
   const message = document.createElement("article");
   message.className = `message ${role}`;
+  if (role === "user") {
+    const label = document.createElement("div");
+    label.className = "message-label";
+    label.textContent = "Your question";
+    message.appendChild(label);
+  } else if (role === "assistant") {
+    const byline = document.createElement("div");
+    byline.className = "assistant-byline";
+    const mark = document.createElement("span");
+    mark.className = "assistant-mark";
+    mark.textContent = "✳";
+    mark.setAttribute("aria-hidden", "true");
+    byline.append(mark, document.createTextNode("CalQuery"));
+    message.appendChild(byline);
+  }
   if (options.messageType === "routing-system") {
     message.classList.add("routing-system-message");
   }
@@ -1577,7 +1602,7 @@ function loadShowInsufficientPreference() {
   } catch (error) {
     saved = null;
   }
-  setShowInsufficient(saved !== "0");
+  setShowInsufficient(saved === "1");
 }
 
 function normalizeThemeName(themeName) {
@@ -1908,8 +1933,8 @@ if (composerSiteBadge && composerSiteMenu) {
   });
 }
 
-if (newChatButton) {
-  newChatButton.addEventListener("click", () => {
+for (const button of newChatButtons) {
+  button.addEventListener("click", () => {
     if (composerBusy) {
       return;
     }
@@ -2283,17 +2308,31 @@ function addSourcesMessage(sources) {
 
   textNode.innerHTML = "";
 
-  const header = document.createElement("div");
-  header.className = "sources-header";
+  const disclosure = document.createElement("details");
+  disclosure.className = "sources-disclosure";
 
-  const heading = document.createElement("h3");
+  const summary = document.createElement("summary");
+  summary.className = "sources-summary";
+
+  const symbol = document.createElement("span");
+  symbol.className = "sources-symbol";
+  symbol.setAttribute("aria-hidden", "true");
+  symbol.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1Zm0 0v14"/></svg>';
+
+  const heading = document.createElement("span");
+  heading.className = "sources-title";
   heading.textContent = "Sources";
 
-  const subtitle = document.createElement("p");
-  subtitle.textContent = `${items.length} official reference${items.length === 1 ? "" : "s"} used in this answer`;
+  const count = document.createElement("span");
+  count.className = "sources-count";
+  count.textContent = String(items.length);
 
-  header.append(heading, subtitle);
-  textNode.appendChild(header);
+  const subtitle = document.createElement("span");
+  subtitle.className = "sources-description";
+  subtitle.textContent = `Official reference${items.length === 1 ? "" : "s"}`;
+
+  summary.append(symbol, heading, count, subtitle);
+  disclosure.appendChild(summary);
 
   const grid = document.createElement("div");
   grid.className = "sources-grid";
@@ -2325,13 +2364,9 @@ function addSourcesMessage(sources) {
     grid.appendChild(card);
   }
 
-  textNode.appendChild(grid);
+  disclosure.appendChild(grid);
+  textNode.appendChild(disclosure);
   chatLog.appendChild(message);
-
-  const previousAssistant = findPreviousAssistantMessage(message);
-  if (previousAssistant) {
-    previousAssistant.classList.add("assistant-with-sources-shelf");
-  }
 
 }
 
@@ -2493,6 +2528,28 @@ function createFeedbackControls(feedbackContext) {
   label.textContent = "Was this helpful?";
   controls.appendChild(label);
 
+  const copyButton = document.createElement("button");
+  copyButton.type = "button";
+  copyButton.className = "feedback-button copy-answer";
+  copyButton.title = "Copy answer";
+  copyButton.setAttribute("aria-label", "Copy answer");
+  copyButton.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/></svg>';
+  const copyStatus = document.createElement("span");
+  copyStatus.className = "answer-feedback-status";
+  copyStatus.setAttribute("aria-live", "polite");
+  copyButton.addEventListener("click", async () => {
+    const sourceUrls = feedbackContext.source_urls || [];
+    const text = feedbackContext.answer + (sourceUrls.length ? `\n\nSources:\n${sourceUrls.join("\n")}` : "");
+    try {
+      await navigator.clipboard.writeText(text);
+      copyStatus.textContent = "Answer copied.";
+    } catch (_error) {
+      copyStatus.textContent = "Could not copy. Select the answer text to copy it.";
+    }
+    window.setTimeout(() => { copyStatus.textContent = ""; }, 3000);
+  });
+  controls.appendChild(copyButton);
+
   const upButton = document.createElement("button");
   upButton.type = "button";
   upButton.className = "feedback-button feedback-up";
@@ -2514,6 +2571,7 @@ function createFeedbackControls(feedbackContext) {
   controls.appendChild(upButton);
   controls.appendChild(downButton);
   controls.appendChild(status);
+  controls.appendChild(copyStatus);
 
   let selectedRating = "";
   let isSubmitting = false;
