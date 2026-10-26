@@ -20,6 +20,9 @@
 
   --ink: #000000;
   --subtle: rgba(0, 0, 0, 0.72);
+  --text-2: #323232;
+  --muted: #535353;
+  --faint: #757575;
   --line: rgba(0, 0, 0, 0.38);
   --bg: #ffffff;
   --panel: #ffffff;
@@ -89,7 +92,7 @@
 }
 
 :root[data-theme="grayscale"] .composer textarea::placeholder {
-  color: #000000;
+  color: var(--faint);
   opacity: 1;
 }
 
@@ -104,7 +107,7 @@
 
 :root[data-theme="grayscale"] .chat-header h1,
 :root[data-theme="grayscale"] .header-lead {
-  color: #ffffff;
+  color: var(--text-2);
 }
 
 :root[data-theme="grayscale"] .header-kicker {
@@ -112,17 +115,17 @@
 }
 
 :root[data-theme="grayscale"] .chat-footer p {
-  color: #000000;
+  color: var(--faint);
 }
 
 :root[data-theme="grayscale"] .chat-footer a {
-  color: #000000;
+  color: var(--faint);
 }
 
 :root[data-theme="grayscale"] .settings-toggle {
-  color: #ffffff;
+  color: var(--muted);
 }
 
 :root[data-theme="grayscale"] .settings-toggle:hover {
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--ink);
 }

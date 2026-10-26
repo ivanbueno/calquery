@@ -20,6 +20,9 @@
 
   --ink: #251f18;
   --subtle: #6c5f4d;
+  --text-2: #3e3830;
+  --muted: #554e45;
+  --faint: #696158;
   --line: #a99982;
   --bg: #ede4d5;
   --panel: #f4eee2;
@@ -89,7 +92,7 @@
 }
 
 :root[data-theme="courtyard"] .composer textarea::placeholder {
-  color: #6c5f4d;
+  color: var(--faint);
   opacity: 1;
 }
 
@@ -104,7 +107,7 @@
 
 :root[data-theme="courtyard"] .chat-header h1,
 :root[data-theme="courtyard"] .header-lead {
-  color: #f6f1e7;
+  color: var(--text-2);
 }
 
 :root[data-theme="courtyard"] .header-kicker {
@@ -112,17 +115,17 @@
 }
 
 :root[data-theme="courtyard"] .chat-footer p {
-  color: #251f18;
+  color: var(--faint);
 }
 
 :root[data-theme="courtyard"] .chat-footer a {
-  color: #314f6b;
+  color: var(--faint);
 }
 
 :root[data-theme="courtyard"] .settings-toggle {
-  color: #f6f1e7;
+  color: var(--muted);
 }
 
 :root[data-theme="courtyard"] .settings-toggle:hover {
-  color: #d4b077;
+  color: var(--ink);
 }
