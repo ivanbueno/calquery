@@ -4,22 +4,35 @@
 class ConversationMemory {
   constructor() {
     this.messages = [];
+    this.searchScope = null;
   }
 
   snapshot() {
     return ConversationMemory.normalize(this.messages);
   }
 
-  remember(query, answer) {
+  remember(query, answer, searchScope = null) {
     this.messages = ConversationMemory.normalize([
       ...this.messages,
       { role: "user", content: query },
       { role: "assistant", content: answer },
     ]);
+    this.searchScope = searchScope;
+  }
+
+  resolveSiteFilter(selectedSite) {
+    return this.searchScope && this.searchScope.requestedSite === selectedSite
+      ? this.searchScope.effectiveSite
+      : selectedSite;
+  }
+
+  clearSearchScope() {
+    this.searchScope = null;
   }
 
   clear() {
     this.messages = [];
+    this.clearSearchScope();
   }
 
   static normalize(messages) {

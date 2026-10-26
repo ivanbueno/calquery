@@ -608,6 +608,7 @@ function setComposerBusy(isBusy) {
 
 function setSiteFilter(siteValue, options = {}) {
   const selectedSiteFilter = normalizeSiteFilterValue(siteValue);
+  conversationMemory.clearSearchScope();
   const shouldPersist = options.persist !== false;
 
   if (siteSelect && siteSelect.value !== selectedSiteFilter) {
@@ -2879,6 +2880,7 @@ composer.addEventListener("submit", async (event) => {
   const queryStartedAt = performance.now();
 
   const history = conversationMemory.snapshot();
+  const requestSiteFilter = conversationMemory.resolveSiteFilter(selectedSiteFilter);
   // A cached standalone answer must never replace a contextual follow-up.
   const cached = history.length ? null : getCachedResponse(query, selectedSiteFilter, selectedPersona);
   trackEvent("query_submitted", {
@@ -2941,7 +2943,10 @@ composer.addEventListener("submit", async (event) => {
       if (!isInsufficientAnswer) {
         addSourcesMessage(sources);
       }
-      conversationMemory.remember(query, answer);
+      conversationMemory.remember(query, answer, {
+        requestedSite: selectedSiteFilter,
+        effectiveSite: cachedEffectiveSiteFilter,
+      });
       trackEvent("query_succeeded", {
         selected_index: routeDetails.selectedIndex || "none",
         routed_count: routeDetails.routedIndices.length || (routeDetails.selectedIndex ? 1 : 0),
@@ -2956,13 +2961,13 @@ composer.addEventListener("submit", async (event) => {
       return;
     }
 
-    let queryResult = await executeQuery(query, selectedSiteFilter, selectedPersona, liveAssistant, history);
+    let queryResult = await executeQuery(query, requestSiteFilter, selectedPersona, liveAssistant, history);
     let { rawAnswer, sources, routeDetails, responseMode } = queryResult;
     let retriedAllSites = false;
 
     if (
       isInsufficientInformationAnswer(rawAnswer) &&
-      normalizeSiteFilterValue(selectedSiteFilter) !== SITE_FILTER_ALL
+      normalizeSiteFilterValue(requestSiteFilter) !== SITE_FILTER_ALL
     ) {
       if (showInsufficientCheckbox && showInsufficientCheckbox.checked) {
         liveAssistant.finalize(applyPersonaAnswerVoice(rawAnswer, selectedPersona));
@@ -2991,8 +2996,11 @@ composer.addEventListener("submit", async (event) => {
     const isInsufficientAnswer = isInsufficientInformationAnswer(rawAnswer);
     const answer = applyPersonaAnswerVoice(rawAnswer, selectedPersona);
     liveAssistant.finalize(answer);
-    conversationMemory.remember(query, answer);
-    const effectiveSiteFilter = retriedAllSites ? SITE_FILTER_ALL : selectedSiteFilter;
+    const effectiveSiteFilter = retriedAllSites ? SITE_FILTER_ALL : requestSiteFilter;
+    conversationMemory.remember(query, answer, {
+      requestedSite: selectedSiteFilter,
+      effectiveSite: effectiveSiteFilter,
+    });
     if (!isInsufficientAnswer) {
       liveAssistant.setFeedback(
         buildFeedbackContext({
