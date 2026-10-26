@@ -1079,18 +1079,114 @@ function renderMarkdown(markdown) {
     return `@@CODEBLOCK_${idx}@@`;
   });
 
+  // Inline code and URLs are stashed so emphasis markers inside them (e.g. snake_case) survive.
+  const inlineTokens = [];
+  function stashInline(html) {
+    inlineTokens.push(html);
+    return `@@INLINE_${inlineTokens.length - 1}@@`;
+  }
+
   working = working
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/`([^`\n]+)`/g, (_match, code) => stashInline(`<code>${code}</code>`))
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_match, label, url) =>
+      `<a href="${stashInline(url)}" target="_blank" rel="noopener noreferrer">${label}</a>`
+    )
     .replace(
       /(<a [^>]+>[^<]+<\/a>)\s+\(((?:www\.)?[a-z0-9.-]+\.[a-z]{2,}(?::\d{1,5})?)\)/gi,
       '$1 <span class="source-domain">($2)</span>'
     )
-    .replace(/`([^`\n]+)`/g, "<code>$1</code>")
+    .replace(/(^|[\s(])(https?:\/\/[^\s<)]+[^\s<).,;:!?])/g, (_match, lead, url) =>
+      `${lead}${stashInline(`<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`)}`
+    )
+    .replace(/\*\*\*([^*\n]+)\*\*\*/g, "<strong><em>$1</em></strong>")
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*([^*\n]+)\*/g, "<em>$1</em>");
+    .replace(/(^|[^\w])__([^_\n]+)__(?!\w)/g, "$1<strong>$2</strong>")
+    .replace(/\*([^*\n]+)\*/g, "<em>$1</em>")
+    .replace(/(^|[^\w])_([^_\n]+)_(?!\w)/g, "$1<em>$2</em>")
+    .replace(/~~([^~\n]+)~~/g, "<del>$1</del>")
+    .replace(/@@INLINE_(\d+)@@/g, (_match, idx) => inlineTokens[Number(idx)] || "");
 
   const parts = [];
   const listStack = [];
+  const lines = working.split("\n");
+
+  function nextNonBlankIndex(fromIndex) {
+    for (let idx = fromIndex; idx < lines.length; idx += 1) {
+      if (lines[idx].trim()) {
+        return idx;
+      }
+    }
+    return -1;
+  }
+
+  function isTableSeparator(line) {
+    return line.includes("|") && /^\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?$/.test(line);
+  }
+
+  function splitTableRow(line) {
+    let row = line.trim();
+    if (row.startsWith("|")) {
+      row = row.slice(1);
+    }
+    if (row.endsWith("|") && !row.endsWith("\\|")) {
+      row = row.slice(0, -1);
+    }
+    return row.split(/(?<!\\)\|/).map((cell) => cell.trim().replace(/\\\|/g, "|"));
+  }
+
+  function tableCellAlignment(separatorCell) {
+    const left = separatorCell.startsWith(":");
+    const right = separatorCell.endsWith(":");
+    if (left && right) {
+      return "center";
+    }
+    if (right) {
+      return "right";
+    }
+    return left ? "left" : "";
+  }
+
+  // Parses a GFM pipe table starting at headerIndex. Blank lines between rows are
+  // tolerated because the model often double-spaces table rows.
+  function parseTable(headerIndex, separatorIndex) {
+    const headerLine = lines[headerIndex].trim();
+    const headers = splitTableRow(headerLine);
+    const alignments = splitTableRow(lines[separatorIndex]).map(tableCellAlignment);
+    const requireLeadingPipe = headerLine.startsWith("|");
+    const rows = [];
+    let lastIndex = separatorIndex;
+
+    while (true) {
+      const rowIndex = nextNonBlankIndex(lastIndex + 1);
+      if (rowIndex === -1) {
+        break;
+      }
+      const rowLine = lines[rowIndex].trim();
+      const looksLikeRow = requireLeadingPipe ? rowLine.startsWith("|") : rowLine.includes("|");
+      if (!looksLikeRow || /^@@CODEBLOCK_\d+@@$/.test(rowLine)) {
+        break;
+      }
+      if (!isTableSeparator(rowLine)) {
+        rows.push(splitTableRow(rowLine));
+      }
+      lastIndex = rowIndex;
+    }
+
+    function renderCell(tag, content, columnIndex) {
+      const align = alignments[columnIndex];
+      const style = align ? ` style="text-align:${align}"` : "";
+      return `<${tag}${style}>${content || ""}</${tag}>`;
+    }
+
+    const head = headers.map((cell, columnIndex) => renderCell("th", cell, columnIndex)).join("");
+    const body = rows
+      .map((row) => `<tr>${headers.map((_header, columnIndex) => renderCell("td", row[columnIndex], columnIndex)).join("")}</tr>`)
+      .join("");
+    parts.push(
+      `<div class="table-wrap"><table><thead><tr>${head}</tr></thead>${body ? `<tbody>${body}</tbody>` : ""}</table></div>`
+    );
+    return lastIndex;
+  }
 
   function openList(type, startNumber = null) {
     if (type === "ol") {
@@ -1183,12 +1279,18 @@ function renderMarkdown(markdown) {
     }
 
     const active = listStack[listStack.length - 1];
-    parts.push(`<li>${content}`);
+    const taskMatch = type === "ul" ? content.match(/^\[([ xX])\]\s+(.*)$/) : null;
+    if (taskMatch) {
+      const checked = taskMatch[1] === " " ? "" : " checked";
+      parts.push(`<li class="task-item"><input type="checkbox" disabled${checked}>${taskMatch[2]}`);
+    } else {
+      parts.push(`<li>${content}`);
+    }
     active.liOpen = true;
   }
 
-  for (const rawLine of working.split("\n")) {
-    const normalizedLine = rawLine.replace(/\t/g, "    ");
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const normalizedLine = lines[lineIndex].replace(/\t/g, "    ");
     const trimmed = normalizedLine.trim();
     const indentMatch = normalizedLine.match(/^ +/);
     const indent = indentMatch ? indentMatch[0].length : 0;
@@ -1204,6 +1306,43 @@ function renderMarkdown(markdown) {
       closeLists();
       const idx = Number.parseInt(codeMatch[1], 10);
       parts.push(codeBlocks[idx] || "");
+      continue;
+    }
+
+    if (trimmed.includes("|")) {
+      const separatorIndex = nextNonBlankIndex(lineIndex + 1);
+      if (separatorIndex !== -1 && isTableSeparator(lines[separatorIndex].trim())) {
+        closeLists();
+        lineIndex = parseTable(lineIndex, separatorIndex);
+        continue;
+      }
+    }
+
+    if (/^(?:(?:-\s*){3,}|(?:\*\s*){3,}|(?:_\s*){3,})$/.test(trimmed)) {
+      closeLists();
+      parts.push("<hr>");
+      continue;
+    }
+
+    const quoteMatch = trimmed.match(/^&gt;\s?(.*)$/);
+    if (quoteMatch) {
+      closeLists();
+      const quoteLines = [quoteMatch[1]];
+      while (lineIndex + 1 < lines.length) {
+        const nextQuote = lines[lineIndex + 1].trim().match(/^&gt;\s?(.*)$/);
+        if (!nextQuote) {
+          break;
+        }
+        quoteLines.push(nextQuote[1]);
+        lineIndex += 1;
+      }
+      const paragraphs = quoteLines
+        .join("\n")
+        .split(/\n\s*\n/)
+        .map((paragraph) => paragraph.trim())
+        .filter(Boolean)
+        .map((paragraph) => `<p>${paragraph.replace(/\n/g, "<br>")}</p>`);
+      parts.push(`<blockquote>${paragraphs.join("")}</blockquote>`);
       continue;
     }
 
