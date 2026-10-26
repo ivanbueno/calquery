@@ -141,7 +141,7 @@ button:disabled { cursor: not-allowed; }
   --chat-column-max-width: 48rem;
   --chat-side-padding: max(2.5rem, calc((100% - var(--chat-column-max-width)) / 2));
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   min-width: 0;
   min-height: 0;
   height: 100dvh;
@@ -198,22 +198,6 @@ button:disabled { cursor: not-allowed; }
 .settings-control select { border-radius: .35rem; padding: .6rem; }
 .settings-action { gap: .4rem; flex-wrap: wrap; }
 .clear-cache-button { font-size: .75rem; padding: .4rem; }
-.workspace-context {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin: 0;
-  padding: .7rem var(--chat-side-padding) 1.35rem;
-  color: var(--subtle);
-  font: .65rem/1.5 var(--mono);
-  position: relative;
-}
-.workspace-context::after { content: ""; position: absolute; bottom: 0; left: var(--chat-side-padding); right: var(--chat-side-padding); border-bottom: 1px solid var(--line); }
-.workspace-context > span:first-child { display: flex; align-items: center; gap: .6rem; }
-.context-dot { width: .3rem; height: .3rem; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
-.workspace-location { font-size: .6rem; text-transform: uppercase; letter-spacing: .07em; }
-
 .chat-log, body.welcome-active .chat-log {
   padding: 2rem var(--chat-side-padding) 2.5rem;
   min-height: 0;
@@ -393,13 +377,12 @@ button.composer-site-option { font-size: .8rem; font-weight: 400; border-radius:
   .info-toggle { right: calc(2rem + var(--header-toggle-size) + var(--header-toggle-gap)); }
   .header-new-chat { right: calc(2rem + 2 * (var(--header-toggle-size) + var(--header-toggle-gap))); }
   .settings-panel { right: 2rem; }
-  .workspace-location { display: none; }
 }
 
 @media (max-width: 700px) {
   .page-layout, body.welcome-active .page-layout { grid-template-columns: minmax(0, 1fr); height: 100dvh; }
   .workspace-rail { display: none; }
-  .chat-shell, body.welcome-active .chat-shell { --chat-side-padding: 1.5rem; grid-template-rows: auto auto minmax(0, 1fr) auto auto; min-height: 0; height: 100dvh; overflow: hidden; }
+  .chat-shell, body.welcome-active .chat-shell { --chat-side-padding: 1.5rem; grid-template-rows: auto minmax(0, 1fr) auto auto; min-height: 0; height: 100dvh; overflow: hidden; }
   .chat-header { --header-toggle-size: 1.9rem; --header-toggle-gap: .4rem; min-height: 5.1rem; padding: 1.15rem 1.5rem; }
   .brand { gap: .65rem; max-width: calc(100% - 7.2rem); }
   .chat-header h1 { font-size: 1.35rem; }
@@ -410,7 +393,6 @@ button.composer-site-option { font-size: .8rem; font-weight: 400; border-radius:
   .info-toggle { right: calc(1.5rem + var(--header-toggle-size) + var(--header-toggle-gap)); }
   .header-new-chat { right: calc(1.5rem + 2 * (var(--header-toggle-size) + var(--header-toggle-gap))); }
   .settings-panel { right: 1rem; max-height: calc(100dvh - 6rem); overflow: auto; }
-  .workspace-context { padding-top: .25rem; padding-bottom: 1rem; font-size: .6rem; }
   .chat-log, body.welcome-active .chat-log { padding-top: 1.5rem; padding-bottom: 1.5rem; gap: 1.6rem; }
   .welcome-panel { padding-top: 1rem; padding-bottom: 1rem; gap: 1.5rem; }
   .welcome-panel h2 { font-size: clamp(2.7rem, 11vw, 3.4rem); }

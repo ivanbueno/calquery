@@ -39,7 +39,6 @@ const personaRow = document.getElementById("personaRow");
 const personaToggle = document.getElementById("personaToggle");
 const clearCacheButton = document.getElementById("clearCacheButton");
 const newChatButtons = Array.from(document.querySelectorAll("[data-new-chat]"));
-const workspaceViewLabel = document.getElementById("workspaceViewLabel");
 const conversationMemory = new ConversationMemory();
 const showInsufficientCheckbox = document.getElementById("showInsufficientCheckbox");
 const brandLogo = document.querySelector(".brand-logo");
@@ -519,9 +518,6 @@ function setWelcomePanelHidden(isHidden) {
   }
   const hidden = Boolean(isHidden);
   const transitionId = ++welcomeTransitionId;
-  if (workspaceViewLabel) {
-    workspaceViewLabel.textContent = hidden ? "Your answer" : "Start here";
-  }
   if (queryInput) {
     queryInput.placeholder = hidden ? "Ask a follow-up question…" : "What would you like to understand?";
   }
