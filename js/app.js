@@ -1434,6 +1434,48 @@ function alignAssistantMessage(message) {
   });
 }
 
+function createQuestionCopyControls(textNode) {
+  const row = document.createElement("div");
+  row.className = "question-row";
+
+  const copyButton = document.createElement("button");
+  copyButton.type = "button";
+  copyButton.className = "feedback-button question-copy-button";
+  copyButton.setAttribute("aria-label", "Copy question");
+  copyButton.title = "Copy question";
+  const copyIcon = '<span class="feedback-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg></span>';
+  copyButton.innerHTML = copyIcon;
+
+  const status = document.createElement("span");
+  status.className = "question-copy-status";
+  status.setAttribute("role", "status");
+  let resetTimer;
+  copyButton.addEventListener("click", async () => {
+    window.clearTimeout(resetTimer);
+    copyButton.classList.remove("is-copied");
+    copyButton.innerHTML = copyIcon;
+    status.classList.remove("is-error");
+    status.textContent = "";
+    try {
+      await navigator.clipboard.writeText(textNode.textContent);
+      copyButton.classList.add("is-copied");
+      copyButton.innerHTML = '<span class="feedback-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m5 12 4 4L19 6"/></svg></span>';
+      status.textContent = "Question copied.";
+      resetTimer = window.setTimeout(() => {
+        copyButton.classList.remove("is-copied");
+        copyButton.innerHTML = copyIcon;
+        status.textContent = "";
+      }, 2000);
+    } catch (_error) {
+      status.classList.add("is-error");
+      status.textContent = "Could not copy. Select the question text to copy it.";
+    }
+  });
+
+  row.append(copyButton, textNode, status);
+  return row;
+}
+
 function createMessageElements(role, metaText, options = {}) {
   const message = document.createElement("article");
   message.className = `message ${role}`;
@@ -1464,7 +1506,7 @@ function createMessageElements(role, metaText, options = {}) {
 
   const textNode = document.createElement("div");
   textNode.className = "content";
-  message.appendChild(textNode);
+  message.appendChild(role === "user" ? createQuestionCopyControls(textNode) : textNode);
 
   if (metaText) {
     const meta = document.createElement("div");
@@ -2749,13 +2791,6 @@ function createFeedbackIcon(rating) {
   return icon;
 }
 
-function createFeedbackLabel(text) {
-  const label = document.createElement("span");
-  label.className = "feedback-button-label";
-  label.textContent = text;
-  return label;
-}
-
 function createFeedbackControls(feedbackContext) {
   const controls = document.createElement("div");
   controls.className = "answer-feedback";
@@ -2768,8 +2803,9 @@ function createFeedbackControls(feedbackContext) {
   const copyButton = document.createElement("button");
   copyButton.type = "button";
   copyButton.className = "feedback-button copy-answer";
+  copyButton.setAttribute("aria-label", "Copy answer");
+  copyButton.title = "Copy answer";
   copyButton.innerHTML = '<span class="feedback-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg></span>';
-  copyButton.appendChild(createFeedbackLabel("Copy answer"));
   const copyStatus = document.createElement("span");
   copyStatus.className = "answer-feedback-status";
   copyStatus.setAttribute("aria-live", "polite");
@@ -2789,12 +2825,16 @@ function createFeedbackControls(feedbackContext) {
   const upButton = document.createElement("button");
   upButton.type = "button";
   upButton.className = "feedback-button feedback-up";
-  upButton.append(createFeedbackIcon(FEEDBACK_RATING_UP), createFeedbackLabel("Helpful"));
+  upButton.setAttribute("aria-label", "Helpful");
+  upButton.title = "Helpful";
+  upButton.appendChild(createFeedbackIcon(FEEDBACK_RATING_UP));
 
   const downButton = document.createElement("button");
   downButton.type = "button";
   downButton.className = "feedback-button feedback-down";
-  downButton.append(createFeedbackIcon(FEEDBACK_RATING_DOWN), createFeedbackLabel("Not helpful"));
+  downButton.setAttribute("aria-label", "Not helpful");
+  downButton.title = "Not helpful";
+  downButton.appendChild(createFeedbackIcon(FEEDBACK_RATING_DOWN));
 
   const status = document.createElement("span");
   status.className = "answer-feedback-status";

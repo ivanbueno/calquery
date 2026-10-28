@@ -69,7 +69,7 @@
   <script defer src="./js/app-config.js?v=9375c99e1eeb"></script>
   <script defer src="./js/conversation-memory.js?v=8dfefcc11da7"></script>
   <script defer src="./js/answer-steps.js?v=6a197cd00242"></script>
-  <script defer src="./js/app.js?v=de085f361a36"></script>
+  <script defer src="./js/app.js?v=499337774320"></script>
 </head>
 <body>
   <a class="skip-link" href="#queryInput">Skip to your question</a>
@@ -96,17 +96,14 @@
           </a>
         </div>
         <nav class="header-actions" aria-label="CalQuery">
-          <button class="header-new-chat word-button" type="button" data-new-chat>
+          <button class="header-new-chat word-button" type="button" data-new-chat aria-label="New chat" title="New chat">
             <svg class="word-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-            <span class="word-label">New</span>
           </button>
-          <button id="infoToggle" class="info-toggle word-button" type="button" aria-haspopup="dialog" aria-controls="infoDrawer" aria-expanded="false">
+          <button id="infoToggle" class="info-toggle word-button" type="button" aria-label="About" title="About" aria-haspopup="dialog" aria-controls="infoDrawer" aria-expanded="false">
             <svg class="word-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg>
-            <span class="word-label">About</span>
           </button>
-          <button id="settingsToggle" class="settings-toggle word-button" type="button" aria-haspopup="dialog" aria-controls="settingsPanel" aria-expanded="false">
+          <button id="settingsToggle" class="settings-toggle word-button" type="button" aria-label="Settings" title="Settings" aria-haspopup="dialog" aria-controls="settingsPanel" aria-expanded="false">
             <svg class="word-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10m4 0h2M4 17h4m4 0h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
-            <span class="word-label">Settings</span>
           </button>
         </nav>
         <div id="settingsPanel" class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" hidden>
